@@ -50,20 +50,6 @@ class expression_node : public ast_node {
         value_type_ = value_type;
     }
 
-    // static variable_type type_of(value_t value) {
-    //     return std::visit([](auto &&v){
-    //         using T = std::decay_t<decltype(value)>;
-    //         if constexpr (std::is_same_v<T, int32_t>)
-    //             return variable_type::integer;
-    //         else if constexpr (std::is_same_v<T, float>)
-    //             return variable_type::floating;
-    //         else if constexpr (std::is_same_v<T, bool>)
-    //             return variable_type::boolean;
-    //         else
-    //             return variable_type::error;
-    //     }, value);
-    // }
-
  private:
     variable_type value_type_;
 };
@@ -123,17 +109,7 @@ class binary_node : public expression_node {
 class add_node : public binary_node {
  public:
     add_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, rhs, token_type::plus) {
-        // variable_type left_type = left()->value_type();
-        // variable_type right_type = right()->value_type();
-
-        // auto type = binary_expression_type(left_type, token_type::plus, right_type);
-        // if (type == variable_type::error) {
-        //     set_value_type(variable_type::error);
-        // } else {
-        //     set_value_type(type);
-        // }
-    }
+        : binary_node(lhs, rhs, token_type::plus) {}
 
     virtual value_t *evaluate() const override {
         if (value_type() == variable_type::error) {
@@ -169,17 +145,7 @@ class add_node : public binary_node {
 class multiply_node : public binary_node {
  public:
     multiply_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, rhs, token_type::asterisk) {
-        // variable_type left_type = left()->value_type();
-        // variable_type right_type = right()->value_type();
-
-        // auto type = binary_expression_type(left_type, token_type::asterisk, right_type);
-        // if (type == variable_type::error) {
-        //     set_value_type(variable_type::error);
-        // } else {
-        //     set_value_type(type);
-        // }
-    }
+        : binary_node(lhs, rhs, token_type::asterisk) {}
 
     virtual value_t *evaluate() const override {
         if (value_type() == variable_type::error) {
