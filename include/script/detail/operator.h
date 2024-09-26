@@ -10,7 +10,7 @@ namespace detail {
 class plus {
  public:
     template <typename T, typename U>
-    constexpr auto operator()(T &lhs, U &rhs) {
+    constexpr auto operator()(const T &lhs, const U &rhs) {
         return lhs + rhs;
     }
 };
@@ -18,7 +18,7 @@ class plus {
 class minus {
  public:
     template <typename T, typename U>
-    constexpr auto operator()(T &lhs, U &rhs) {
+    constexpr auto operator()(const T &lhs, const U &rhs) {
         return lhs - rhs;
     }
 };
@@ -26,7 +26,7 @@ class minus {
 class multiplies {
  public:
     template <typename T, typename U>
-    constexpr auto operator()(T &lhs, U &rhs) {
+    constexpr auto operator()(const T &lhs, const U &rhs) {
         return lhs * rhs;
     }
 };
@@ -35,7 +35,7 @@ class multiplies {
 class divides {
  public:
     template <typename T, typename U>
-    constexpr auto operator()(T &lhs, U &rhs) {
+    constexpr auto operator()(const T &lhs, const U &rhs) {
         return lhs / rhs;
     }
 };
@@ -43,7 +43,7 @@ class divides {
 class modulus {
  public:
     template <typename T, typename U>
-    constexpr auto operator()(T &lhs, U &rhs) {
+    constexpr auto operator()(const T &lhs, const U &rhs) {
         return lhs % rhs;
     }
 };
