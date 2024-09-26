@@ -9,7 +9,7 @@ int main() {
     using neroll::script::detail::variable_type;
     namespace nsd = neroll::script::detail;
 
-    nsd::multiply_node add(new nsd::float_node(1.2), new nsd::int_node(2));
+    nsd::add_node add(new nsd::float_node(1.2), new nsd::int_node(2));
     auto result = add.evaluate();
     if (result->type() == variable_type::error) {
         auto error = dynamic_cast<nsd::error_value *>(result);
