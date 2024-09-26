@@ -134,6 +134,37 @@ class binary_node : public expression_node {
     std::shared_ptr<expression_node> rhs_;
 };
 
+template <>
+value_t *binary_node::evaluate_result<modulus>() const {
+    assert(left()->value_type() == variable_type::integer);
+    assert(right()->value_type() == variable_type::integer);
+
+    value_t *lhs_value = left()->evaluate();
+    value_t *rhs_value = right()->evaluate();
+
+    auto lhs = dynamic_cast<int_value *>(lhs_value);
+    auto rhs = dynamic_cast<int_value *>(rhs_value);
+
+    return new int_value(lhs->value() % rhs->value());
+}
+
+value_t *binary_node::select_operator(token_type op) const {
+    switch (op) {
+        case token_type::plus:
+            return evaluate_result<plus>();
+        case token_type::minus:
+            return evaluate_result<minus>();
+        case token_type::asterisk:
+            return evaluate_result<multiplies>();
+        case token_type::slash:
+            return evaluate_result<divides>();
+        case token_type::mod:
+            return evaluate_result<modulus>();
+        default:
+            return new error_value(std::format("invalid operator {}", token_type_name(op)));
+    }
+}
+
 class add_node : public binary_node {
  public:
     add_node(expression_node *lhs, expression_node *rhs)
@@ -148,28 +179,6 @@ class add_node : public binary_node {
         }
 
         return select_operator(token_type::plus);
-        // return evaluate_result<std::plus<int>>();
-
-        // value_t *lhs_value = left()->evaluate();
-        // value_t *rhs_value = right()->evaluate();
-
-        // if (value_type() == variable_type::integer) {
-        //     auto l = dynamic_cast<int_value *>(lhs_value);
-        //     auto r = dynamic_cast<int_value *>(rhs_value);
-        //     return new int_value(l->value() + r->value());
-        // } else if (left()->value_type() == variable_type::integer) {
-        //     auto l = dynamic_cast<int_value *>(lhs_value);
-        //     auto r = dynamic_cast<float_value *>(rhs_value);
-        //     return new float_value(l->value() + r->value());
-        // } else if (right()->value_type() == variable_type::integer) {
-        //     auto l = dynamic_cast<float_value *>(lhs_value);
-        //     auto r = dynamic_cast<int_value *>(rhs_value);
-        //     return new float_value(l->value() + r->value());
-        // } else {
-        //     auto l = dynamic_cast<float_value *>(lhs_value);
-        //     auto r = dynamic_cast<float_value *>(rhs_value);
-        //     return new float_value(l->value() + r->value());
-        // }
     }
 };
 
@@ -187,27 +196,6 @@ class multiply_node : public binary_node {
         }
 
         return select_operator(token_type::asterisk);
-
-        // value_t *lhs_value = left()->evaluate();
-        // value_t *rhs_value = right()->evaluate();
-
-        // if (value_type() == variable_type::integer) {
-        //     auto l = dynamic_cast<int_value *>(lhs_value);
-        //     auto r = dynamic_cast<int_value *>(rhs_value);
-        //     return new int_value(l->value() * r->value());
-        // } else if (left()->value_type() == variable_type::integer) {
-        //     auto l = dynamic_cast<int_value *>(lhs_value);
-        //     auto r = dynamic_cast<float_value *>(rhs_value);
-        //     return new float_value(l->value() * r->value());
-        // } else if (right()->value_type() == variable_type::integer) {
-        //     auto l = dynamic_cast<float_value *>(lhs_value);
-        //     auto r = dynamic_cast<int_value *>(rhs_value);
-        //     return new float_value(l->value() * r->value());
-        // } else {
-        //     auto l = dynamic_cast<float_value *>(lhs_value);
-        //     auto r = dynamic_cast<float_value *>(rhs_value);
-        //     return new float_value(l->value() * r->value());
-        // }
     }
 };
 
@@ -292,37 +280,6 @@ class while_node : statement_node {
     std::shared_ptr<expression_node> condition_;
     std::vector<std::shared_ptr<statement_node>> statements_;
 };
-
-template <>
-value_t *binary_node::evaluate_result<modulus>() const {
-    assert(left()->value_type() == variable_type::integer);
-    assert(right()->value_type() == variable_type::integer);
-
-    value_t *lhs_value = left()->evaluate();
-    value_t *rhs_value = right()->evaluate();
-
-    auto lhs = dynamic_cast<int_value *>(lhs_value);
-    auto rhs = dynamic_cast<int_value *>(rhs_value);
-
-    return new int_value(lhs->value() % rhs->value());
-}
-
-value_t *binary_node::select_operator(token_type op) const {
-    switch (op) {
-        case token_type::plus:
-            return evaluate_result<plus>();
-        case token_type::minus:
-            return evaluate_result<minus>();
-        case token_type::asterisk:
-            return evaluate_result<multiplies>();
-        case token_type::slash:
-            return evaluate_result<divides>();
-        case token_type::mod:
-            return evaluate_result<modulus>();
-        default:
-            return new error_value(std::format("invalid operator {}", token_type_name(op)));
-    }
-}
 
 }   // namespace detail
 
