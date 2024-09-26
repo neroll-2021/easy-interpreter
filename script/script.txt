@@ -1,0 +1,12 @@
+function main() : int {
+    int a = 10;
+    float b = 1.0;
+    boolean c = true;
+    for (i = 0; i < a; i = i + 1) {
+        
+    }
+    while (false) {
+
+    }
+    return a;
+}
