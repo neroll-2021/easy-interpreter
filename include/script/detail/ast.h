@@ -146,7 +146,6 @@ class add_node : public binary_node {
         value_t *lhs_value = left()->evaluate();
         value_t *rhs_value = right()->evaluate();
 
-        std::println("e {}", variable_type_name(value_type()));
         if (value_type() == variable_type::integer) {
             auto l = dynamic_cast<int_value *>(lhs_value);
             auto r = dynamic_cast<int_value *>(rhs_value);
@@ -154,6 +153,10 @@ class add_node : public binary_node {
         } else if (left()->value_type() == variable_type::integer) {
             auto l = dynamic_cast<int_value *>(lhs_value);
             auto r = dynamic_cast<float_value *>(rhs_value);
+            return new float_value(l->value() + r->value());
+        } else if (right()->value_type() == variable_type::integer) {
+            auto l = dynamic_cast<float_value *>(lhs_value);
+            auto r = dynamic_cast<int_value *>(rhs_value);
             return new float_value(l->value() + r->value());
         } else {
             auto l = dynamic_cast<float_value *>(lhs_value);
@@ -196,6 +199,10 @@ class multiply_node : public binary_node {
         } else if (left()->value_type() == variable_type::integer) {
             auto l = dynamic_cast<int_value *>(lhs_value);
             auto r = dynamic_cast<float_value *>(rhs_value);
+            return new float_value(l->value() * r->value());
+        } else if (right()->value_type() == variable_type::integer) {
+            auto l = dynamic_cast<float_value *>(lhs_value);
+            auto r = dynamic_cast<int_value *>(rhs_value);
             return new float_value(l->value() * r->value());
         } else {
             auto l = dynamic_cast<float_value *>(lhs_value);
