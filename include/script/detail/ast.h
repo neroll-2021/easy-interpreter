@@ -128,7 +128,7 @@ class add_node : public binary_node {
     virtual value_t *evaluate() const override {
         if (value_type() == variable_type::error) {
             return new error_value(
-                std::format("invalid operator between {} and {}",
+                std::format("invalid operator + between {} and {}",
                     variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
             );
         }
@@ -152,7 +152,47 @@ class add_node : public binary_node {
     }
 };
 
+class multiply_node : public binary_node {
+ public:
+    multiply_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, rhs) {
+        variable_type left_type = left()->value_type();
+        variable_type right_type = right()->value_type();
 
+        auto type = binary_expression_type(left_type, token_type::plus, right_type);
+        if (type == variable_type::error) {
+            set_value_type(variable_type::error);
+        } else {
+            set_value_type(type);
+        }
+    }
+
+    virtual value_t *evaluate() const override {
+        if (value_type() == variable_type::error) {
+            return new error_value(
+                std::format("invalid operator * between {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+
+        value_t *lhs_value = left()->evaluate();
+        value_t *rhs_value = right()->evaluate();
+
+        if (value_type() == variable_type::integer) {
+            auto l = dynamic_cast<int_value *>(lhs_value);
+            auto r = dynamic_cast<int_value *>(rhs_value);
+            return new int_value(l->value() * r->value());
+        } else if (left()->value_type() == variable_type::integer) {
+            auto l = dynamic_cast<int_value *>(lhs_value);
+            auto r = dynamic_cast<float_value *>(rhs_value);
+            return new float_value(l->value() * r->value());
+        } else {
+            auto l = dynamic_cast<float_value *>(lhs_value);
+            auto r = dynamic_cast<float_value *>(rhs_value);
+            return new float_value(l->value() * r->value());
+        }
+    }
+};
 
 class int_node : public expression_node {
  public:
