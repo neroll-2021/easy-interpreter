@@ -76,23 +76,6 @@ class statement_node : public ast_node {
     virtual void execute() = 0;
 };
 
-class binary_node : public expression_node {
- public:
-    binary_node(expression_node *lhs, expression_node *rhs)
-        : expression_node(ast_node_type::binary), lhs_(lhs), rhs_(rhs) {}
-
-    std::shared_ptr<expression_node> left() const {
-        return lhs_;
-    }
-    std::shared_ptr<expression_node> right() const {
-        return rhs_;
-    }
-
- private:
-    std::shared_ptr<expression_node> lhs_;
-    std::shared_ptr<expression_node> rhs_;
-};
-
 // 
 variable_type binary_expression_type(variable_type lhs_type, token_type op, variable_type rhs_type) {
     switch (op) {
@@ -110,19 +93,46 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
     }
 }
 
-class add_node : public binary_node {
+class binary_node : public expression_node {
  public:
-    add_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, rhs) {
+    binary_node(expression_node *lhs, expression_node *rhs, token_type op)
+        : expression_node(ast_node_type::binary), lhs_(lhs), rhs_(rhs) {
         variable_type left_type = left()->value_type();
         variable_type right_type = right()->value_type();
 
-        auto type = binary_expression_type(left_type, token_type::plus, right_type);
+        auto type = binary_expression_type(left_type, op, right_type);
         if (type == variable_type::error) {
             set_value_type(variable_type::error);
         } else {
             set_value_type(type);
         }
+    }
+
+    std::shared_ptr<expression_node> left() const {
+        return lhs_;
+    }
+    std::shared_ptr<expression_node> right() const {
+        return rhs_;
+    }
+
+ private:
+    std::shared_ptr<expression_node> lhs_;
+    std::shared_ptr<expression_node> rhs_;
+};
+
+class add_node : public binary_node {
+ public:
+    add_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, rhs, token_type::plus) {
+        // variable_type left_type = left()->value_type();
+        // variable_type right_type = right()->value_type();
+
+        // auto type = binary_expression_type(left_type, token_type::plus, right_type);
+        // if (type == variable_type::error) {
+        //     set_value_type(variable_type::error);
+        // } else {
+        //     set_value_type(type);
+        // }
     }
 
     virtual value_t *evaluate() const override {
@@ -136,6 +146,7 @@ class add_node : public binary_node {
         value_t *lhs_value = left()->evaluate();
         value_t *rhs_value = right()->evaluate();
 
+        std::println("e {}", variable_type_name(value_type()));
         if (value_type() == variable_type::integer) {
             auto l = dynamic_cast<int_value *>(lhs_value);
             auto r = dynamic_cast<int_value *>(rhs_value);
@@ -155,16 +166,16 @@ class add_node : public binary_node {
 class multiply_node : public binary_node {
  public:
     multiply_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, rhs) {
-        variable_type left_type = left()->value_type();
-        variable_type right_type = right()->value_type();
+        : binary_node(lhs, rhs, token_type::asterisk) {
+        // variable_type left_type = left()->value_type();
+        // variable_type right_type = right()->value_type();
 
-        auto type = binary_expression_type(left_type, token_type::plus, right_type);
-        if (type == variable_type::error) {
-            set_value_type(variable_type::error);
-        } else {
-            set_value_type(type);
-        }
+        // auto type = binary_expression_type(left_type, token_type::asterisk, right_type);
+        // if (type == variable_type::error) {
+        //     set_value_type(variable_type::error);
+        // } else {
+        //     set_value_type(type);
+        // }
     }
 
     virtual value_t *evaluate() const override {
