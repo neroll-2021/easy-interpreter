@@ -81,7 +81,7 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
 
 class binary_node : public expression_node {
  public:
-    binary_node(expression_node *lhs, expression_node *rhs, token_type op)
+    binary_node(expression_node *lhs, token_type op, expression_node *rhs)
         : expression_node(ast_node_type::binary), lhs_(lhs), rhs_(rhs) {
         variable_type left_type = left()->value_type();
         variable_type right_type = right()->value_type();
@@ -109,7 +109,7 @@ class binary_node : public expression_node {
 class add_node : public binary_node {
  public:
     add_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, rhs, token_type::plus) {}
+        : binary_node(lhs, token_type::plus, rhs) {}
 
     virtual value_t *evaluate() const override {
         if (value_type() == variable_type::error) {
@@ -145,7 +145,7 @@ class add_node : public binary_node {
 class multiply_node : public binary_node {
  public:
     multiply_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, rhs, token_type::asterisk) {}
+        : binary_node(lhs, token_type::asterisk, rhs) {}
 
     virtual value_t *evaluate() const override {
         if (value_type() == variable_type::error) {
