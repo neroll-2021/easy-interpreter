@@ -27,7 +27,7 @@ class ring_buffer {
         pos_ = (pos_ + 1) % capacity_;
     }
 
-    T get_next(std::size_t k) const {
+    const T &get_next(std::size_t k) const {
         assert(k < capacity_);
         return data_[(pos_ + k) % capacity_];
     }
