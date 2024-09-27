@@ -11,7 +11,8 @@ target("nscript-easy")
 
 for _, file in ipairs(os.files("test/*.cpp")) do
     local name = path.basename(file)
-    target(name)
+    local target_name = "test_" .. name
+    target(target_name)
         set_kind("binary")
         set_default(false)
         add_includedirs("include")
