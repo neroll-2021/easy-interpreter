@@ -170,32 +170,125 @@ class parser {
         }
     }
 
-    std::shared_ptr<expression_node> build_expression_tree() {
-        auto token = lexer_.next_token();
-        std::stack<expression_node *> stack;
-        std::stack<token_type> ops;
-        auto rhs = stack.top();
-        stack.pop();
-        auto lhs = stack.top();
-        stack.pop();
-        auto lhs_type = lhs->value_type();
-        auto rhs_type = rhs->value_type();
-        auto type = variable_type_cast(lhs_type, rhs_type);
-        if (type == variable_type::error) {
-            // throw ...
-        }
-        expression_node *node = nullptr;
-        auto op = ops.top();
-        ops.pop();
-        switch (op) {
-            case token_type::plus:
-                node = new add_node(lhs, rhs);
-            default:
-                throw std::runtime_error("invalid operand");
-        }
-        node->set_value_type(type);
-        return std::shared_ptr<expression_node>(node);
-    }
+    // 
+    // std::shared_ptr<expression_node> build_expression_tree() {
+    //     std::stack<expression_node *> nodes;
+    //     std::stack<token> operands;
+    //     std::stack<token> operators;
+
+    //     while (current_token().type != token_type::semicolon) {
+    //         if (is_operand(current_token().type)) {
+    //             operands.push(current_token());
+    //             nodes.push(make_value_node(current_token()));
+    //         } else {
+    //             while (operator_priority(current_token().type()) >= operator_priority(operators.top().type)) {
+    //                 auto top = operators.top();
+    //                 operators.pop();
+
+    //             }
+    //         }
+    //     }
+    //     return nullptr;
+    // }
+
+    // bool meet_function() const {
+    //     return current_token().type == token_type::identifier &&
+    //            next_token(1).type == token_type::left_brace;
+    // }
+    // bool meet_variable() const {
+    //     return current_token().type == token_type::identifier &&
+    //            next_token(1).type != token_type::left_brace;
+    // }
+
+    // static expression_node *make_value_node(const token &t) {
+    //     switch (t.type) {
+    //         case token_type::literal_int: {
+    //             int32_t value;
+    //             std::string_view literal{t.content};
+    //             auto [ptr, errc] = std::from_chars(literal.data(), literal.data() + literal.size(), value);
+    //             if (errc == std::errc::invalid_argument) {
+    //                 throw std::invalid_argument(
+    //                     std::format("invalid integer {}", literal);
+    //                 );
+    //             }
+    //             return new int_node(value);
+    //         }
+    //         break;
+    //         case token_type::literal_float: {
+    //             float value;
+    //             std::string_view literal{t.content};
+    //             auto [ptr, errc] = std::from_chars(literal.data(), literal.data() + literal.size(), value);
+    //             if (errc == std::errc::invalid_argument) {
+    //                 throw std::invalid_argument(
+    //                     std::format("invalid integer {}", literal);
+    //                 );
+    //             }
+    //             return float_node(value);
+    //         }
+    //         break;
+    //         case token_type::literal_true:
+    //             return new boolean_node(true);
+    //         case token_type::literal_false:
+    //             return new boolean_node(false);
+    //         default:
+    //             throw std::runtime_error("make_expr_node(): invalid token");
+    //     }
+    // }
+
+    // static bool is_operand(token_type type) {
+    //     switch (type) (
+    //         case token_type::literal_int:
+    //         case token_type::literal_float:
+    //         case token_type::literal_true:
+    //         case token_type::literal_false:
+    //             return true;
+    //         case token_type::identifier:
+    //             throw std::runtime_error("variable and function is not supported yet");
+    //         default:
+    //             return false;
+    //     )
+    // }
+
+    // static int operator_priority(token_type type) {
+    //     switch (type) {
+    //         case token_type::plus:
+    //         case token_type::minus:
+    //             return 3;
+    //         case token_type::asterisk:
+    //         case token_type::slash:
+    //         case token_type::mod:
+    //             return 5;
+    //         case token_type::less:
+    //         case token_type::greater:
+    //         case token_type::equal:
+    //         case token_type::assign:
+    //             throw std::runtime_error("operator not supported yet");
+    //         default:
+    //             throw std::runtime_error(
+    //                 std::format("invalid operator {}", token_type_name(type))
+    //             );
+    //     }
+    // }
+
+    // static bool is_left_associative(token_type type) {
+    //     switch (type) {
+    //         case token_type::plus:
+    //         case token_type::minus:
+    //         case token_type::asterisk:
+    //         case token_type::slash:
+    //         case token_type::mod:
+    //             return true;
+    //         case token_type::less:
+    //         case token_type::greater:
+    //         case token_type::equal:
+    //         case token_type::assign:
+    //             throw std::runtime_error("operator not supported yet");
+    //         default:
+    //             throw std::runtime_error(
+    //                 std::format("invalid operator {}", token_type_name(type))
+    //             );
+    //     }
+    // }
 
     void execute(std::shared_ptr<expression_node> node) {
         if (node->node_type() == ast_node_type::add) {
@@ -210,7 +303,12 @@ class parser {
         return buffer_.get_next(k);
     }
     void get_token() {
-        buffer_.add(lexer_.next_token());
+        // previous_token_ = current_token();
+        auto token = lexer_.next_token();
+        std::println("{}", token);
+        buffer_.add(token);
+
+        // buffer_.add(lexer_.next_token());
     }
 
     void match(token_type expected_type) {
@@ -227,8 +325,8 @@ class parser {
     }
 
  private:
+    // token previous_token_;
     lexer<InputAdapterType> lexer_;
-    // lexer<file_input_adapter> lexer_;
     ring_buffer<token> buffer_;
 
     constexpr static std::size_t look_ahead_count = 2;
