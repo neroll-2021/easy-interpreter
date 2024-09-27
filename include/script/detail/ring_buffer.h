@@ -26,8 +26,8 @@ class ring_buffer {
         pos_ = (pos_ + 1) % capacity_;
     }
 
-    T get(std::size_t k) const {
-        return data_[(pos_ + k - 1) % capacity_];
+    T get_next(std::size_t k) const {
+        return data_[(pos_ + k) % capacity_];
     }
 
  private:
