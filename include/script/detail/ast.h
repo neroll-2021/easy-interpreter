@@ -17,7 +17,7 @@ namespace script {
 namespace detail {
 
 enum class ast_node_type {
-    function, node_for, node_if, node_while, integer, floating, boolean, add, binary
+    function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary
 };
 
 class ast_node {
@@ -161,6 +161,19 @@ value_t *binary_node::select_operator(token_type op) const {
     }
 }
 
+class unary_node : public expression_node {
+ public:
+    unary_node(expression_node *value)
+        : expression_node(ast_node_type::unary), value_(value) {}
+
+    std::shared_ptr<expression_node> value() const {
+        return value_;
+    }
+
+ private:
+    std::shared_ptr<expression_node> value_;
+};
+
 class add_node : public binary_node {
  public:
     add_node(expression_node *lhs, expression_node *rhs)
@@ -210,6 +223,66 @@ class multiply_node : public binary_node {
 
         return select_operator(token_type::asterisk);
     }
+};
+
+class divide_node : public binary_node {
+ public:
+    divide_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::slash, rhs) {}
+
+    virtual value_t *evaluate() const override {
+        if (value_type() == variable_type::error) {
+            return new error_value(
+                std::format("invalid operator / between {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+
+        return select_operator(token_type::slash);
+    }
+};
+
+class modulus_node : public binary_node {
+ public:
+    modulus_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::mod, rhs) {}
+
+    virtual value_t *evaluate() const override {
+        if (value_type() == variable_type::error) {
+            return new error_value(
+                std::format("invalid operator % between {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+
+        return select_operator(token_type::mod);
+    }
+};
+
+class negative_node : public unary_node {
+ public:
+    negative_node(expression_node *value)
+        : unary_node(value) {}
+
+    value_t *evaluate() const override {
+        value_t *val = value()->evaluate();
+        if (value_type() == variable_type::integer) {
+            auto v = dynamic_cast<int_value *>(val);
+            auto result = new int_value(-v->value());
+            delete val;
+            return result;
+        } else if (value_type() == variable_type::floating) {
+            auto v = dynamic_cast<float_value *>(val);
+            auto result = new float_value(-v->value());
+            delete val;
+            return result;
+        } else if (value_type() == variable_type::boolean) {
+            return new error_value(
+                std::format("invalid operator - on {}", variable_type_name(value_type()))
+            );
+        }
+    }
+    
 };
 
 class int_node : public expression_node {
