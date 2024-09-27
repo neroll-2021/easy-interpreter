@@ -3,6 +3,7 @@
 
 #include <cstddef>  // std::size_t
 #include <memory>   // std::unique_ptr
+#include <cassert>  // assert
 
 namespace neroll {
 
@@ -27,6 +28,7 @@ class ring_buffer {
     }
 
     T get_next(std::size_t k) const {
+        assert(k < capacity_);
         return data_[(pos_ + k) % capacity_];
     }
 
