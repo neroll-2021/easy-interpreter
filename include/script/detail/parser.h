@@ -14,6 +14,47 @@ namespace script {
 
 namespace detail {
 
+/*
+ *
+ * BNF of script
+ * 
+ * expr -> term
+ *       | term + term
+ *       | term - term
+ * 
+ * term -> factor
+ *       | factor * factor
+ *       | factor / factor
+ *       | factor % factor
+ * 
+ * factor -> unary
+ * 
+ * unary -> primary
+ *        | + unary
+ *        | - unary
+ * 
+ * primary -> IDENTIFIER
+ *          | constant
+ *          | ( expr )
+ *          | IDENTIFIER ( arg_list )
+ * 
+ * arg_list -> expr args
+ * 
+ * args -> , expr args
+ *       | <null>
+ * 
+ * constant -> INT | FLOAT | BOOLEAN
+ * 
+ * IDENTIFIER -> [a-zA-Z_][a-zA-Z0-9_]*
+ * 
+ * INT -> 0|[1-9][0-9]*
+ * 
+ * FLOAT -> 
+ * 
+ * BOOLEAN -> true | false
+ * 
+ */
+
 // template <typename InputAdapterType>
 class parser {
  
