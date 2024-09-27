@@ -24,7 +24,7 @@ class file_input_adapter {
     file_input_adapter& operator=(file_input_adapter&&) = delete;
     ~file_input_adapter() = default;
     
-    std::char_traits<char>::int_type get_chararcter() noexcept {
+    std::char_traits<char>::int_type get_character() noexcept {
         return std::fgetc(file_);
     }
 
