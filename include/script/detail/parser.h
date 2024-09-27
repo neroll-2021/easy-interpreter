@@ -5,8 +5,9 @@
 #include <stack>    // std::stack
 
 #include "script/detail/input_adapter.h"
-#include "script/detail/lexer.h"    // lexer
-#include "script/detail/ast.h"      // 
+#include "script/detail/lexer.h"            // lexer
+#include "script/detail/ast.h"              // 
+#include "script/detail/ring_buffer.h"      // ring_buffer
 
 namespace neroll {
 
@@ -57,9 +58,26 @@ namespace detail {
 
 // template <typename InputAdapterType>
 class parser {
- 
+ public:
+    parser(lexer<file_input_adapter> &&lex)
+        : lexer_(std::move(lex)), buffer_(look_ahead_count) {
+        for (std::size_t i = 0; i < buffer_.capacity(); i++) {
+            get_token();
+        }
+    }
+
+
  public:
 //  private:
+
+
+    // expression_node *parse_term() {
+
+    // }
+
+    // expression_node *parse_expression() {
+        
+    // }
 
     std::shared_ptr<expression_node> build_expression_tree() {
         auto token = lexer_.next_token();
@@ -94,9 +112,22 @@ class parser {
         }
     }
 
+    token current_token() const {
+        return buffer_.get_next(0);
+    }
+    token next_token(std::size_t k) const {
+        return buffer_.get_next(k);
+    }
+    void get_token() {
+        buffer_.add(lexer_.next_token());
+    }
+
  private:
     // lexer<InputAdapterType> lexer_;
     lexer<file_input_adapter> lexer_;
+    ring_buffer<token> buffer_;
+
+    constexpr static std::size_t look_ahead_count = 2;
 };
 
 }
