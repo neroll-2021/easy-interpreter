@@ -178,6 +178,23 @@ class add_node : public binary_node {
     }
 };
 
+class minus_node : public binary_node {
+ public:
+    minus_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::minus, rhs) {}
+
+    virtual value_t *evaluate() const override {
+        if (value_type() == variable_type::error) {
+            return new error_value(
+                std::format("invalid operator - between {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+
+        return select_operator(token_type::minus);
+    }
+};
+
 class multiply_node : public binary_node {
  public:
     multiply_node(expression_node *lhs, expression_node *rhs)
