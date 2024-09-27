@@ -153,6 +153,8 @@ struct token {
     std::size_t line;
     std::size_t column;
 
+    token() = default;
+
     token(token_type t, const position_t &p)
         : type(t), line(p.lines_read + 1),
           column(p.chars_read_current_line) {}
