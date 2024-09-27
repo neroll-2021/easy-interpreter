@@ -88,11 +88,7 @@ class binary_node : public expression_node {
         variable_type right_type = right()->value_type();
 
         auto type = binary_expression_type(left_type, op, right_type);
-        if (type == variable_type::error) {
-            set_value_type(variable_type::error);
-        } else {
-            set_value_type(type);
-        }
+        set_value_type(type);
     }
 
     std::shared_ptr<expression_node> left() const {
@@ -249,8 +245,9 @@ class for_node : public statement_node {
     for_node() : statement_node(ast_node_type::node_for) {}
 
     void execute() override {
+        assert(condition_->value_type() == variable_type::boolean);
         init_statement_->evaluate();
-        while (condition_->evaluate()) {
+        while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
             for (auto &statement : statements_) {
                 statement->execute();
             }
@@ -262,7 +259,7 @@ class for_node : public statement_node {
     std::shared_ptr<expression_node> init_statement_;
     std::shared_ptr<expression_node> condition_;
     std::shared_ptr<expression_node> update_;
-    std::vector<std::unique_ptr<statement_node>> statements_;
+    std::vector<std::shared_ptr<statement_node>> statements_;
 };
 
 class while_node : statement_node {
@@ -270,7 +267,8 @@ class while_node : statement_node {
     while_node() : statement_node(ast_node_type::node_while) {}
 
     void execute() override {
-        while (condition_->evaluate()) {
+        assert(condition_->value_type() == variable_type::boolean);
+        while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
             for (auto &statement : statements_) {
                 statement->execute();
             }
