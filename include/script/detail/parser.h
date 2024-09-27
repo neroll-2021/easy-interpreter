@@ -57,6 +57,39 @@ namespace detail {
  * 
  */
 
+/*
+ * expr -> term expr'
+ * 
+ * expr' -> + term expr'
+ *        | - term expr'
+ *        | $
+ * 
+ * term -> factor term'
+ * 
+ * term' -> * factor term'
+ *        | / factor term'
+ *        | % factor term'
+ *        | $
+ * 
+ * factor -> unary
+ * 
+ * unary -> + unary
+ *        | - unary
+ *        | primary
+ * 
+ * primary -> IDENTIFIER
+ *          | CONSTANT
+ *          | { expr }
+ *          | IDENTIFIER ( arg_list )
+ *
+ * arg_list -> expr args
+ *           | $
+ * 
+ * args -> , expr args
+ *       | $
+ * 
+ * 
+*/
 template <typename InputAdapterType>
 class parser {
  public:
