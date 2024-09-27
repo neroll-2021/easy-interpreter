@@ -276,13 +276,12 @@ class negative_node : public unary_node {
             auto result = new float_value(-v->value());
             delete val;
             return result;
-        } else if (value_type() == variable_type::boolean) {
+        } else {
             return new error_value(
                 std::format("invalid operator - on {}", variable_type_name(value_type()))
             );
         }
     }
-    
 };
 
 class int_node : public expression_node {
