@@ -9,6 +9,18 @@ target("nscript-easy")
     add_includedirs("include")
     -- add_links("stdc++exp")
 
+for _, file in ipairs(os.files("test/*.cpp")) do
+    local name = path.basename(file)
+    target(name)
+        set_kind("binary")
+        set_default(false)
+        add_includedirs("include")
+        set_warnings("all", "error")
+        set_languages("c++23")
+        set_optimize("fastest")
+        add_files("test/" .. name .. ".cpp")
+end
+
 
 
 --
