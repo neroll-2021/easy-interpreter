@@ -1,1 +1,1 @@
-int neroll = 10;
+boolean a;
