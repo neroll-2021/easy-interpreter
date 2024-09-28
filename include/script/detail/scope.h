@@ -91,6 +91,10 @@ class scope_chain {
         scopes_.pop_back();
     }
 
+    scope &current_scope() {
+        return scopes_.back();
+    }
+
     bool contains(std::string_view name) const {
         for (const auto &scope : scopes_ | std::views::reverse) {
             if (scope.contains(name))
@@ -123,6 +127,8 @@ class scope_chain {
  private:
     std::vector<scope> scopes_;
 };
+
+inline scope_chain program_scope;
 
 }   // namespace detail
 
