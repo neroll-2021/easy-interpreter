@@ -11,10 +11,19 @@ int main() {
         return 0;
     }
     nsd::parser<nsd::input_stream_adapter> parser{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
-    std::shared_ptr<nsd::expression_node> node{parser.parse_expr()};
+    std::shared_ptr<nsd::expression_node> node;
+    try {
+        auto p = parser.parse_expr();
+        node.reset(p);
+    }
+    catch (std::exception &e) {
+        std::println("{}", e.what());
+    }
     nsd::value_t *result = node->evaluate();
     if (result->type() == nsd::variable_type::error) {
         std::println("error type");
+        auto p = dynamic_cast<nsd::error_value *>(result);
+        std::println("{}", p->value());
         return 0;
     }
     if (result->type() == nsd::variable_type::integer) {
