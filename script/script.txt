@@ -1,1 +1,4 @@
-boolean a;
+int a = 10;
+float b = 1.2;
+
+boolean c = true;
