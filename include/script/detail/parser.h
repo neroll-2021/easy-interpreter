@@ -58,6 +58,17 @@ namespace detail {
  */
 
 /*
+ *
+ * declaraction -> type IDENTIFIER initiation ;
+ * 
+ * initiation -> = expr
+ *             | $
+ * 
+ * type -> int | float | bool
+ * 
+ * 
+ * 
+ * 
  * expr -> term expr'
  * 
  * expr' -> + term expr'
@@ -103,6 +114,48 @@ class parser {
 
  public:
 //  private:
+
+    statement_node *parse_declaration() {
+        declaration_node *node = nullptr;
+        expression_node *init_value = nullptr;
+        std::string var_name;
+        variable_type var_type = variable_type::error;
+        switch (current_token().type) {
+            case token_type::keyword_int:
+                match(token_type::keyword_int);
+                var_name = current_token().content;
+                match(token_type::identifier);
+                init_value = parse_initiation();
+                var_type = variable_type::integer;
+                break;
+            case token_type::keyword_float:
+                match(token_type::keyword_float);
+                var_name = current_token().content;
+                match(token_type::identifier);
+                init_value = parse_initiation();
+                var_type = variable_type::floating;
+                break;
+            case token_type::keyword_boolean:
+                match(token_type::keyword_boolean);
+                var_name = current_token().content;
+                match(token_type::identifier);
+                init_value = parse_initiation();
+                var_type = variable_type::boolean;
+                break;
+            default:
+                throw std::runtime_error("invalid variable type in declaration");
+        }
+        node = new declaration_node(var_type, var_name, init_value);
+        match(token_type::semicolon);
+        // std::println("eee");
+        // assert(node != nullptr);
+        return node;
+    }
+
+    expression_node *parse_initiation() {
+        match(token_type::assign);
+        return parse_expr();
+    }
 
     expression_node *parse_expr() {
         expression_node *expr1 = parse_term();
