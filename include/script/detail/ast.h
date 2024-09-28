@@ -341,7 +341,10 @@ class declaration_node : public statement_node {
  public:
     declaration_node(variable_type type, std::string_view name, expression_node *value)
         : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
-        if (value != nullptr && variable_type_cast(type, value->value_type()) == variable_type::error) {
+        if (value != nullptr && value->value_type() == variable_type::boolean && type == variable_type::boolean) {
+            
+        }
+        else if (value != nullptr && variable_type_cast(type, value->value_type()) == variable_type::error) {
             throw std::runtime_error(
                 std::format("initial value type '{}' is not the same with variable type '{}",
                     variable_type_name(value->value_type()), variable_type_name(type))
@@ -418,6 +421,10 @@ class block_node : public statement_node {
 
     void insert(statement_node *statement) {
         statements_.emplace_back(statement);
+    }
+
+    const std::vector<std::shared_ptr<statement_node>> &statements() const {
+        return statements_;
     }
 
     void execute() override {

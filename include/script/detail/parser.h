@@ -59,15 +59,17 @@ namespace detail {
 
 /*
  *
- * declaraction -> type IDENTIFIER initiation ;
+ * declaration -> type IDENTIFIER initiation ;
  * 
  * initiation -> = expr
  *             | $
  * 
  * type -> int | float | bool
  * 
+ * block -> statement block
+ *        | $
  * 
- * 
+ * statement -> declaration    (todo)
  * 
  * expr -> term expr'
  * 
@@ -115,6 +117,21 @@ class parser {
  public:
 //  private:
 
+    statement_node *parse_block() {
+        block_node *node = new block_node();
+        statement_node *statement = parse_statement();
+        while (statement != nullptr) {
+            node->insert(statement);
+            statement = parse_statement();
+        }
+        return node;
+    }
+
+    statement_node *parse_statement() {
+        
+        return parse_declaration();
+    }
+
     statement_node *parse_declaration() {
         declaration_node *node = nullptr;
         expression_node *init_value = nullptr;
@@ -143,6 +160,7 @@ class parser {
                 var_type = variable_type::boolean;
                 break;
             default:
+                return nullptr;
                 throw std::runtime_error("invalid variable type in declaration");
         }
         node = new declaration_node(var_type, var_name, init_value);
