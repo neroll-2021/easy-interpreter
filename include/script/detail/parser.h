@@ -153,6 +153,9 @@ class parser {
     }
 
     expression_node *parse_initiation() {
+        if (current_token().type == token_type::semicolon) {
+            return nullptr;
+        }
         match(token_type::assign);
         return parse_expr();
     }
@@ -249,6 +252,14 @@ class parser {
             return n;
         } else if (current_token().type == token_type::identifier) {
             throw std::runtime_error("variable and function are not supported yet");
+        } else if (current_token().type == token_type::literal_true) {
+            auto n = make_value_node<bool>(current_token());
+            match(token_type::literal_true);
+            return n;
+        } else if (current_token().type == token_type::literal_false) {
+            auto n = make_value_node<bool>(current_token());
+            match(token_type::literal_false);
+            return n;
         } else {
             throw std::runtime_error("invalid operand");
         }
@@ -256,14 +267,25 @@ class parser {
 
     template <typename T>
     expression_node *make_value_node(const token &t) const {
-        static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, float>);
-        T value;
-        std::string_view literal{t.content};
-        std::from_chars(literal.data(), literal.data() + literal.size(), value);
+        static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, float> || std::is_same_v<T, bool>);
+        
         if constexpr (std::is_same_v<T, int32_t>) {
+            T value;
+            std::string_view literal{t.content};
+            std::from_chars(literal.data(), literal.data() + literal.size(), value);
             return new int_node(value);
-        } else {
+        } else if constexpr (std::is_same_v<T, float>) {
+            T value;
+            std::string_view literal{t.content};
+            std::from_chars(literal.data(), literal.data() + literal.size(), value);
             return new float_node(value);
+        } else if constexpr (std::is_same_v<T, bool>) {
+            if (t.type == token_type::literal_true)
+                return new boolean_node(true);
+            else
+                return new boolean_node(false);
+        } else {
+            throw std::runtime_error("make_value_node(): invalid value type");
         }
     }
 
