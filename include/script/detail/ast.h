@@ -71,6 +71,10 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
         case token_type::asterisk:
         case token_type::slash:
             return variable_type_cast(lhs_type, rhs_type);
+        case token_type::mod:
+            if (lhs_type != variable_type::integer || rhs_type != variable_type::integer)
+                return variable_type::error;
+            return variable_type::integer;
         case token_type::equal:
         case token_type::less:
         case token_type::greater:
