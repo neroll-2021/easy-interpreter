@@ -341,12 +341,13 @@ class declaration_node : public statement_node {
  public:
     declaration_node(variable_type type, std::string_view name, expression_node *value)
         : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
-        if (variable_type_cast(type, value->value_type()) == variable_type::error) {
+        if (value != nullptr && variable_type_cast(type, value->value_type()) == variable_type::error) {
             throw std::runtime_error(
                 std::format("initial value type '{}' is not the same with variable type '{}",
                     variable_type_name(value->value_type()), variable_type_name(type))
             );
         }
+        
         switch (type) {
             case variable_type::integer:
             case variable_type::floating:
@@ -355,21 +356,22 @@ class declaration_node : public statement_node {
             default:
                 throw std::runtime_error("invalid variable type");
         }
+        
         if (value == nullptr) {
-            // switch (type) {
-            //     case variable_type::integer:
-            //         init_value_ = std::make_shared<int_node>(value);
-            //         break;
-            //     case variable_type::floating:
-            //         init_value_ = std::make_shared<float_node>(value);
-            //         break;
-            //     case variable_type::boolean:
-            //         init_value_ = std::make_shared<boolean_node>(value);
-            //         break;
-            //     default:
-            //         throw std::runtime_error("unreachable code");
-            // }
-            init_value_.reset(value);
+            switch (type) {
+                case variable_type::integer:
+                    init_value_ = std::make_shared<int_node>(0);
+                    break;
+                case variable_type::floating:
+                    init_value_ = std::make_shared<float_node>(0.0f);
+                    break;
+                case variable_type::boolean:
+                    init_value_ = std::make_shared<boolean_node>(false);
+                    break;
+                default:
+                    throw std::runtime_error("unreachable code");
+            }
+            // init_value_.reset(value);
             assert(init_value_ != nullptr);
         }
     }
