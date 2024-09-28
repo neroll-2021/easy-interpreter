@@ -9,6 +9,7 @@
 #include "script/detail/variable.h" // variable_type_cast
 #include "script/detail/value_t.h"  // value_t
 #include "script/detail/operator.h" // plus, minus, multiplies, divides
+#include "script/detail/scope.h"    // program_scope
 
 namespace neroll {
 
@@ -17,7 +18,8 @@ namespace script {
 namespace detail {
 
 enum class ast_node_type {
-    function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary
+    function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
+    declaration
 };
 
 class ast_node {
@@ -59,6 +61,8 @@ class statement_node : public ast_node {
  public:
     statement_node(ast_node_type node_type)
         : ast_node(node_type) {}
+    
+    virtual ~statement_node() {}
 
     virtual void execute() = 0;
 };
@@ -286,6 +290,70 @@ class negative_node : public unary_node {
             );
         }
     }
+};
+
+class declaration_node : public statement_node {
+ public:
+    declaration_node(variable_type type, std::string_view name, value_t *value)
+        : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
+        if (type != value->type()) {
+            throw std::runtime_error(
+                std::format("initial value type '{}' is not the same with variable type '{}",
+                    variable_type_name(value->type()), variable_type_name(type))
+            );
+        }
+        switch (type) {
+            case variable_type::integer:
+            case variable_type::floating:
+            case variable_type::boolean:
+                break;
+            default:
+                throw std::runtime_error("invalid variable type");
+        }
+        if (value == nullptr) {
+            switch (type) {
+                case variable_type::integer:
+                    init_value_ = std::make_shared<int_value>(0);
+                    break;
+                case variable_type::floating:
+                    init_value_ = std::make_shared<float_value>(0.0f);
+                    break;
+                case variable_type::boolean:
+                    init_value_ = std::make_shared<boolean_value>(false);
+                    break;
+                default:
+                    throw std::runtime_error("unreachable code");
+            }
+        }
+    }
+
+    void execute() override {
+        // program_scope.current_scope().insert()
+        switch (type_) {
+            case variable_type::integer: {
+                auto p = std::dynamic_pointer_cast<int_value>(init_value_);
+                program_scope.current_scope().insert(new variable_int(variable_name_, p->value()));
+            }
+            break;
+            case variable_type::floating: {
+                auto p = std::dynamic_pointer_cast<float_value>(init_value_);
+                program_scope.current_scope().insert(new variable_float(variable_name_, p->value()));
+            }
+            break;
+            case variable_type::boolean: {
+                auto p = std::dynamic_pointer_cast<boolean_value>(init_value_);
+                program_scope.current_scope().insert(new variable_boolean(variable_name_, p->value()));
+            }
+            break;
+            default:
+                throw std::runtime_error("invalid variable type (unreachable code)");
+        }
+    }
+
+ private:
+    variable_type type_;
+    std::string variable_name_;
+    std::shared_ptr<value_t> init_value_;
 };
 
 class int_node : public expression_node {
