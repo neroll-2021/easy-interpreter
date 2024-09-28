@@ -292,70 +292,6 @@ class negative_node : public unary_node {
     }
 };
 
-class declaration_node : public statement_node {
- public:
-    declaration_node(variable_type type, std::string_view name, value_t *value)
-        : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
-        if (type != value->type()) {
-            throw std::runtime_error(
-                std::format("initial value type '{}' is not the same with variable type '{}",
-                    variable_type_name(value->type()), variable_type_name(type))
-            );
-        }
-        switch (type) {
-            case variable_type::integer:
-            case variable_type::floating:
-            case variable_type::boolean:
-                break;
-            default:
-                throw std::runtime_error("invalid variable type");
-        }
-        if (value == nullptr) {
-            switch (type) {
-                case variable_type::integer:
-                    init_value_ = std::make_shared<int_value>(0);
-                    break;
-                case variable_type::floating:
-                    init_value_ = std::make_shared<float_value>(0.0f);
-                    break;
-                case variable_type::boolean:
-                    init_value_ = std::make_shared<boolean_value>(false);
-                    break;
-                default:
-                    throw std::runtime_error("unreachable code");
-            }
-        }
-    }
-
-    void execute() override {
-        // program_scope.current_scope().insert()
-        switch (type_) {
-            case variable_type::integer: {
-                auto p = std::dynamic_pointer_cast<int_value>(init_value_);
-                program_scope.current_scope().insert(new variable_int(variable_name_, p->value()));
-            }
-            break;
-            case variable_type::floating: {
-                auto p = std::dynamic_pointer_cast<float_value>(init_value_);
-                program_scope.current_scope().insert(new variable_float(variable_name_, p->value()));
-            }
-            break;
-            case variable_type::boolean: {
-                auto p = std::dynamic_pointer_cast<boolean_value>(init_value_);
-                program_scope.current_scope().insert(new variable_boolean(variable_name_, p->value()));
-            }
-            break;
-            default:
-                throw std::runtime_error("invalid variable type (unreachable code)");
-        }
-    }
-
- private:
-    variable_type type_;
-    std::string variable_name_;
-    std::shared_ptr<value_t> init_value_;
-};
-
 class int_node : public expression_node {
  public:
     int_node(int32_t value)
@@ -399,6 +335,78 @@ class boolean_node : public expression_node {
 
  private:
     bool value_;
+};
+
+class declaration_node : public statement_node {
+ public:
+    declaration_node(variable_type type, std::string_view name, expression_node *value)
+        : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
+        if (variable_type_cast(type, value->value_type()) == variable_type::error) {
+            throw std::runtime_error(
+                std::format("initial value type '{}' is not the same with variable type '{}",
+                    variable_type_name(value->value_type()), variable_type_name(type))
+            );
+        }
+        switch (type) {
+            case variable_type::integer:
+            case variable_type::floating:
+            case variable_type::boolean:
+                break;
+            default:
+                throw std::runtime_error("invalid variable type");
+        }
+        if (value == nullptr) {
+            // switch (type) {
+            //     case variable_type::integer:
+            //         init_value_ = std::make_shared<int_node>(value);
+            //         break;
+            //     case variable_type::floating:
+            //         init_value_ = std::make_shared<float_node>(value);
+            //         break;
+            //     case variable_type::boolean:
+            //         init_value_ = std::make_shared<boolean_node>(value);
+            //         break;
+            //     default:
+            //         throw std::runtime_error("unreachable code");
+            // }
+            init_value_.reset(value);
+            assert(init_value_ != nullptr);
+        }
+    }
+
+    void execute() override {
+        // program_scope.current_scope().insert()
+        switch (type_) {
+            case variable_type::integer: {
+                auto p = std::dynamic_pointer_cast<int_node>(init_value_);
+                value_t *r = p->evaluate();
+                auto v = dynamic_cast<int_value *>(r);
+                program_scope.current_scope().insert(new variable_int(variable_name_, v->value()));
+            }
+            break;
+            case variable_type::floating: {
+                auto p = std::dynamic_pointer_cast<float_node>(init_value_);
+                value_t *r = p->evaluate();
+                auto v = dynamic_cast<float_value *>(r);
+                program_scope.current_scope().insert(new variable_float(variable_name_, v->value()));
+            }
+            break;
+            case variable_type::boolean: {
+                auto p = std::dynamic_pointer_cast<boolean_node>(init_value_);
+                value_t *r = p->evaluate();
+                auto v = dynamic_cast<boolean_value *>(r);
+                program_scope.current_scope().insert(new variable_boolean(variable_name_, v->value()));
+            }
+            break;
+            default:
+                throw std::runtime_error("invalid variable type (unreachable code)");
+        }
+    }
+
+ private:
+    variable_type type_;
+    std::string variable_name_;
+    std::shared_ptr<expression_node> init_value_;
 };
 
 class for_node : public statement_node {
