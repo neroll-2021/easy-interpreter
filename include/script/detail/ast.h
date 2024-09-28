@@ -19,7 +19,7 @@ namespace detail {
 
 enum class ast_node_type {
     function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
-    declaration
+    declaration, block
 };
 
 class ast_node {
@@ -409,6 +409,25 @@ class declaration_node : public statement_node {
     variable_type type_;
     std::string variable_name_;
     std::shared_ptr<expression_node> init_value_;
+};
+
+
+class block_node : public statement_node {
+ public:
+    block_node() : statement_node(ast_node_type::block) {}
+
+    void insert(statement_node *statement) {
+        statements_.emplace_back(statement);
+    }
+
+    void execute() override {
+        for (auto &statement : statements_) {
+            statement->execute();
+        }
+    }
+
+ private:
+    std::vector<std::shared_ptr<statement_node>> statements_;
 };
 
 class for_node : public statement_node {
