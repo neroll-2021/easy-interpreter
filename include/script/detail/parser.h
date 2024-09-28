@@ -106,47 +106,64 @@ class parser {
 
     expression_node *parse_expr() {
         expression_node *expr1 = parse_term();
-
-        if (current_token().type == token_type::plus) {
-            match(token_type::plus);
-            expression_node *expr2 = parse_term();
-            expression_node *node = new add_node(expr1, expr2);
-            return node;
-        } else if (current_token().type == token_type::minus) {
-            match(token_type::minus);
-            expression_node *expr2 = parse_term();
-            expression_node *node = new minus_node(expr1, expr2);
-            return node;
+        expression_node *expr2 = nullptr;
+        expression_node *op = nullptr;
+        while (current_token().type == token_type::plus || current_token().type == token_type::minus) {
+            if (current_token().type == token_type::plus) {
+                match(token_type::plus);
+                expr2 = parse_term();
+                op = new add_node(expr1, expr2);
+            } else {
+                match(token_type::minus);
+                expr2 = parse_term();
+                op = new minus_node(expr1, expr2);
+            }
+            expr1 = op;
+            expr2 = nullptr;
         }
         return expr1;
     }
 
+    // expression_node *parse_expr1() {
+
+    // }
 
     expression_node *parse_term() {
         expression_node *expr1 = parse_factor();
-
-        if (current_token().type == token_type::asterisk) {
-            match(token_type::asterisk);
-            expression_node *expr2 = parse_factor();
-            expression_node *node = new multiply_node(expr1, expr2);
-            return node;
-        } else if (current_token().type == token_type::slash) {
-            match(token_type::slash);
-            expression_node *expr2 = parse_factor();
-            expression_node *node = new divide_node(expr1, expr2);
-            return node;
-        } else if (current_token().type == token_type::mod) {
-            match(token_type::mod);
-            expression_node *expr2 = parse_factor();
-            expression_node *node = new modulus_node(expr1, expr2);
-            return node;
+        expression_node *expr2 = nullptr;
+        expression_node *op = nullptr;
+        while (current_token().type == token_type::asterisk || current_token().type == token_type::slash ||
+               current_token().type == token_type::mod) {
+            if (current_token().type == token_type::asterisk) {
+                match(token_type::asterisk);
+                expr2 = parse_factor();
+                op = new multiply_node(expr1, expr2);
+            } else if (current_token().type == token_type::slash) {
+                match(token_type::slash);
+                expr2 = parse_factor();
+                op = new divide_node(expr1, expr2);
+            } else {
+                match(token_type::mod);
+                expr2 = parse_factor();
+                op = new modulus_node(expr1, expr2);
+            }
+            expr1 = op;
+            expr2 = nullptr;
         }
         return expr1;
     }
+
+    // expression_node *parse_term1() {
+    //     return nullptr;
+    // }
 
     expression_node *parse_factor() {
         return parse_unary();
     }
+
+    // expression_node *parse_factor1() {
+
+    // }
 
     expression_node *parse_unary() {
         if (current_token().type == token_type::plus) {
@@ -154,54 +171,151 @@ class parser {
             return parse_unary();
         } else if (current_token().type == token_type::minus) {
             match(token_type::minus);
-            return new negative_node(parse_unary());
+            return parse_unary();
         } else {
             return parse_primary();
         }
     }
 
     expression_node *parse_primary() {
-        if (current_token().type == token_type::identifier && next_token(1).type == token_type::left_brace) {
-            match(token_type::identifier);
-            match(token_type::left_brace);
-            throw std::runtime_error("function call is not supported yet");
-        } else if (current_token().type == token_type::identifier) {
-            match(token_type::identifier);
-            throw std::runtime_error("variable is not supported yet");
-        } else if (current_token().type == token_type::left_brace) {
-            match(token_type::left_brace);
-            expression_node *expr = parse_expr();
-            match(token_type::right_brace);
-            return expr;
-        } else if (current_token().type == token_type::literal_int) {
-            std::string_view literal = current_token().content;
-            int32_t value;
-            auto [ptr, err] = std::from_chars(literal.data(), literal.data() + literal.size(), value);
-            if (err == std::errc::invalid_argument) {
-                throw std::invalid_argument(std::format("parse primary(): invalid integer {}", literal));
-            }
+        // std::println("token type: {}", token_type_name(current_token().type));
+
+        if (current_token().type == token_type::literal_int) {
+            auto n = make_value_node<int32_t>(current_token());
             match(token_type::literal_int);
-            return new int_node(value);
+            return n;
         } else if (current_token().type == token_type::literal_float) {
-            std::string_view literal = current_token().content;
-            float value = std::stof(std::string{literal});
-            if (std::isnan(value)) {
-                throw std::runtime_error("invalid float");
-            }
-            if (std::isinf(value)) {
-                throw std::runtime_error("float too large");
-            }
-            return new float_node(value);
-        } else if (current_token().type == token_type::literal_true) {
-            match(token_type::literal_true);
-            return new boolean_node(true);
-        } else if (current_token().type == token_type::literal_false) {
-            match(token_type::literal_false);
-            return new boolean_node(false);
+            auto n = make_value_node<float>(current_token());
+            match(token_type::literal_float);
+            return n;
+        } else if (current_token().type == token_type::left_parenthese) {
+            match(token_type::left_parenthese);
+            // std::println("token type: {}", token_type_name(current_token().type));
+            auto n = parse_expr();
+            match(token_type::right_parenthese);
+            return n;
+        } else if (current_token().type == token_type::identifier) {
+            throw std::runtime_error("variable and function are not supported yet");
         } else {
-            throw std::runtime_error("invalid grammar");
+            throw std::runtime_error("invalid operand");
         }
     }
+
+    template <typename T>
+    expression_node *make_value_node(const token &t) const {
+        static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, float>);
+        T value;
+        std::string_view literal{t.content};
+        std::from_chars(literal.data(), literal.data() + literal.size(), value);
+        if constexpr (std::is_same_v<T, int32_t>) {
+            return new int_node(value);
+        } else {
+            return new float_node(value);
+        }
+    }
+
+    // vvvvvvvvvvvvvvvvvvvvvvv old vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+    // expression_node *parse_expr() {
+    //     expression_node *expr1 = parse_term();
+
+    //     if (current_token().type == token_type::plus) {
+    //         match(token_type::plus);
+    //         expression_node *expr2 = parse_term();
+    //         expression_node *node = new add_node(expr1, expr2);
+    //         return node;
+    //     } else if (current_token().type == token_type::minus) {
+    //         match(token_type::minus);
+    //         expression_node *expr2 = parse_term();
+    //         expression_node *node = new minus_node(expr1, expr2);
+    //         return node;
+    //     }
+    //     return expr1;
+    // }
+
+
+    // expression_node *parse_term() {
+    //     expression_node *expr1 = parse_factor();
+
+    //     if (current_token().type == token_type::asterisk) {
+    //         match(token_type::asterisk);
+    //         expression_node *expr2 = parse_factor();
+    //         expression_node *node = new multiply_node(expr1, expr2);
+    //         return node;
+    //     } else if (current_token().type == token_type::slash) {
+    //         match(token_type::slash);
+    //         expression_node *expr2 = parse_factor();
+    //         expression_node *node = new divide_node(expr1, expr2);
+    //         return node;
+    //     } else if (current_token().type == token_type::mod) {
+    //         match(token_type::mod);
+    //         expression_node *expr2 = parse_factor();
+    //         expression_node *node = new modulus_node(expr1, expr2);
+    //         return node;
+    //     }
+    //     return expr1;
+    // }
+
+    // expression_node *parse_factor() {
+    //     return parse_unary();
+    // }
+
+    // expression_node *parse_unary() {
+    //     if (current_token().type == token_type::plus) {
+    //         match(token_type::plus);
+    //         return parse_unary();
+    //     } else if (current_token().type == token_type::minus) {
+    //         match(token_type::minus);
+    //         return new negative_node(parse_unary());
+    //     } else {
+    //         return parse_primary();
+    //     }
+    // }
+
+    // expression_node *parse_primary() {
+    //     if (current_token().type == token_type::identifier && next_token(1).type == token_type::left_brace) {
+    //         match(token_type::identifier);
+    //         match(token_type::left_brace);
+    //         throw std::runtime_error("function call is not supported yet");
+    //     } else if (current_token().type == token_type::identifier) {
+    //         match(token_type::identifier);
+    //         throw std::runtime_error("variable is not supported yet");
+    //     } else if (current_token().type == token_type::left_brace) {
+    //         match(token_type::left_brace);
+    //         expression_node *expr = parse_expr();
+    //         match(token_type::right_brace);
+    //         return expr;
+    //     } else if (current_token().type == token_type::literal_int) {
+    //         std::string_view literal = current_token().content;
+    //         int32_t value;
+    //         auto [ptr, err] = std::from_chars(literal.data(), literal.data() + literal.size(), value);
+    //         if (err == std::errc::invalid_argument) {
+    //             throw std::invalid_argument(std::format("parse primary(): invalid integer {}", literal));
+    //         }
+    //         match(token_type::literal_int);
+    //         return new int_node(value);
+    //     } else if (current_token().type == token_type::literal_float) {
+    //         std::string_view literal = current_token().content;
+    //         float value = std::stof(std::string{literal});
+    //         if (std::isnan(value)) {
+    //             throw std::runtime_error("invalid float");
+    //         }
+    //         if (std::isinf(value)) {
+    //             throw std::runtime_error("float too large");
+    //         }
+    //         return new float_node(value);
+    //     } else if (current_token().type == token_type::literal_true) {
+    //         match(token_type::literal_true);
+    //         return new boolean_node(true);
+    //     } else if (current_token().type == token_type::literal_false) {
+    //         match(token_type::literal_false);
+    //         return new boolean_node(false);
+    //     } else {
+    //         throw std::runtime_error("invalid grammar");
+    //     }
+    // }
+
+    // ^^^^^^^^^^^^^^^^^^^^^^^ old ^^^^^^^^^^^^^^^^^^^^^^
 
     // 
     // std::shared_ptr<expression_node> build_expression_tree() {
