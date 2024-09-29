@@ -63,6 +63,14 @@ class input_stream_adapter {
         return res;
     }
 
+    void rewind() {
+        if (is != nullptr) {
+            is->clear();
+            is->seekg(0);
+            sb->pubseekpos(0);
+        }
+    }
+
  private:
     std::istream *is = nullptr;
     std::streambuf *sb = nullptr;
