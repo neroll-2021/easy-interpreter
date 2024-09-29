@@ -37,9 +37,12 @@ enum class token_type {
     slash,                  // /
     mod,                    // %
     amp,                    // &
+    logical_and,            // &&
     vertical_bar,           // |
     colon,                  // :
+    comma,                  // ,
     exclamation,            // !
+    logical_or,             // ||
                             // ~
     single_quote,           // '
     double_quote,           // "
@@ -96,20 +99,26 @@ const char *token_type_name(token_type type) {
             return "+";
         case token_type::minus:
              return "-";
-         case token_type::asterisk:
+        case token_type::asterisk:
              return "*";
-         case token_type::slash:
+        case token_type::slash:
              return "/";
-         case token_type::mod:
+        case token_type::mod:
              return "%";
-         case token_type::amp:
-             return "&";
-         case token_type::vertical_bar:
+        case token_type::amp:
+            return "&";
+        case token_type::logical_and:
+            return "&&";
+        case token_type::vertical_bar:
              return "|";
-         case token_type::colon:
+        case token_type::colon:
             return ":";
+        case token_type::comma:
+            return ",";
         case token_type::exclamation:
             return "!";
+        case token_type::logical_or:
+            return "||";
         case token_type::single_quote:
             return "'";
         case token_type::double_quote:
@@ -199,12 +208,19 @@ class lexer {
             case '%':
                 return token{"%", token_type::mod, position_};
             case '&':
+                if (get() == '&')
+                    return token{"&&", token_type::logical_and, position_};
+                unget();
                 return token("&", token_type::amp, position_);
             case '|':
                 return token{"|", token_type::vertical_bar, position_};
             case ':':
                 return token{":", token_type::colon, position_};
+            case ',':
+                return token{",", token_type::comma, position_};
             case '!':
+                if (get() == '|')
+                    return token{"||", token_type::logical_or, position_};
                 return token{"!", token_type::exclamation, position_};
             case '\'':
                 return token{"'", token_type::single_quote, position_};
