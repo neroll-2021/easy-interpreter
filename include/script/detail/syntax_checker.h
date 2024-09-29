@@ -151,6 +151,9 @@ class syntax_checker {
     void check_statement() {
         if (current_token().type == token_type::left_brace) {
             check_block();
+        } else if (current_token().type == token_type::keyword_for ||
+                   current_token().type == token_type::keyword_while) {
+            check_iter_statement();
         } else {
             check_expr_statement();
         }
@@ -308,8 +311,8 @@ class syntax_checker {
                 break;
             default:
                 throw std::runtime_error(
-                    std::format("line {} column {}: unknown token when parsing primary (expect an expression)",
-                        current_token().line, current_token().column)
+                    std::format("line {} column {}: unknown token {} when parsing primary (expect an expression)",
+                        current_token().line, current_token().column, token_type_name(current_token().type))
                 );
         }
     }
@@ -447,6 +450,37 @@ class syntax_checker {
             match(token_type::identifier);
             check_params();
         }
+    }
+
+    void check_iter_statement() {
+        if (current_token().type == token_type::keyword_for) {
+            check_for();
+        } else if (current_token().type == token_type::keyword_while) {
+            check_while();
+        } else {
+            throw std::runtime_error(
+                std::format("line {} column {}: invalid loop key word",
+                    current_token().line, current_token().column)
+            );
+        }
+    }
+
+    void check_for() {
+        match(token_type::keyword_for);
+        match(token_type::left_parenthese);
+        check_expr_statement();
+        check_expr_statement();
+        check_expr();
+        match(token_type::right_parenthese);
+        check_statement();
+    }
+
+    void check_while() {
+        match(token_type::keyword_while);
+        match(token_type::left_parenthese);
+        check_expr();
+        match(token_type::right_parenthese);
+        check_statement();
     }
 
     void get_token() {
