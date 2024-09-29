@@ -180,6 +180,10 @@ class lexer {
         return position_;
     }
 
+    void rewind() {
+        ia_.rewind();
+    }
+
     token next_token() {
         skip_whitespace();
         
