@@ -154,6 +154,10 @@ class syntax_checker {
         } else if (current_token().type == token_type::keyword_for ||
                    current_token().type == token_type::keyword_while) {
             check_iter_statement();
+        } else if (current_token().type == token_type::keyword_continue ||
+                   current_token().type == token_type::keyword_break ||
+                   current_token().type == token_type::keyword_return) {
+            check_jump();
         } else {
             check_expr_statement();
         }
@@ -481,6 +485,29 @@ class syntax_checker {
         check_expr();
         match(token_type::right_parenthese);
         check_statement();
+    }
+
+    void check_jump() {
+        if (current_token().type == token_type::keyword_continue) {
+            match(token_type::keyword_continue);
+            match(token_type::semicolon);
+        } else if (current_token().type == token_type::keyword_break) {
+            match(token_type::keyword_break);
+            match(token_type::semicolon);
+        } else if (current_token().type == token_type::keyword_return) {
+            match(token_type::keyword_return);
+            if (current_token().type == token_type::semicolon) {
+                match(token_type::semicolon);
+            } else {
+                check_expr();
+                match(token_type::semicolon);
+            }
+        } else {
+            throw std::runtime_error(
+                std::format("line {} column {}: invalid jump key word",
+                    current_token().line, current_token().column)
+            );
+        }
     }
 
     void get_token() {
