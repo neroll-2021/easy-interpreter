@@ -6,10 +6,10 @@
 #include <vector>   // std::vector
 #include <format>   // std::format
 
-#include "script/detail/variable.h" // variable_type_cast
-#include "script/detail/value_t.h"  // value_t
-#include "script/detail/operator.h" // plus, minus, multiplies, divides
-#include "script/detail/scope.h"    // program_scope
+#include "script/detail/variable.h"     // variable_type_cast
+#include "script/detail/value_t.h"      // value_t
+#include "script/detail/operator.h"     // plus, minus, multiplies, divides
+#include "script/detail/scope.h"        // program_scope
 
 namespace neroll {
 
@@ -57,6 +57,10 @@ class expression_node : public ast_node {
     variable_type value_type_;
 };
 
+enum class execute_state {
+    normal, broken, continued, returned
+};
+
 class statement_node : public ast_node {
  public:
     statement_node(ast_node_type node_type)
@@ -64,7 +68,7 @@ class statement_node : public ast_node {
     
     virtual ~statement_node() {}
 
-    virtual void execute() = 0;
+    virtual execute_state execute() = 0;
 };
 
 // 
@@ -379,7 +383,7 @@ class declaration_node : public statement_node {
         }
     }
 
-    void execute() override {
+    execute_state execute() override {
         // program_scope.current_scope().insert()
         switch (type_) {
             case variable_type::integer: {
@@ -406,6 +410,7 @@ class declaration_node : public statement_node {
             default:
                 throw std::runtime_error("invalid variable type (unreachable code)");
         }
+        return execute_state::normal;
     }
 
  private:
@@ -427,10 +432,14 @@ class block_node : public statement_node {
         return statements_;
     }
 
-    void execute() override {
+    execute_state execute() override {
         for (auto &statement : statements_) {
-            statement->execute();
+            execute_state result = statement->execute();
+            if (result != execute_state::normal) {
+                return result;
+            }
         }
+        return execute_state::normal;
     }
 
  private:
@@ -441,39 +450,52 @@ class for_node : public statement_node {
  public:
     for_node() : statement_node(ast_node_type::node_for) {}
 
-    void execute() override {
+    execute_state execute() override {
         assert(condition_->value_type() == variable_type::boolean);
         init_statement_->evaluate();
         while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
-            for (auto &statement : statements_) {
-                statement->execute();
+            execute_state state = statements_->execute();
+            if (state == execute_state::continued) {
+                update_->evaluate();
+                continue;
+            } else if (state == execute_state::broken) {
+                break;
+            } else if (state == execute_state::returned) {
+                return execute_state::returned;
             }
             update_->evaluate();
         }
+        return execute_state::normal;
     }
 
  private:
     std::shared_ptr<expression_node> init_statement_;
     std::shared_ptr<expression_node> condition_;
     std::shared_ptr<expression_node> update_;
-    std::vector<std::shared_ptr<statement_node>> statements_;
+    std::shared_ptr<block_node> statements_;
 };
 
 class while_node : statement_node {
  public:
     while_node() : statement_node(ast_node_type::node_while) {}
 
-    void execute() override {
+    execute_state execute() override {
         assert(condition_->value_type() == variable_type::boolean);
         while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
-            for (auto &statement : statements_) {
-                statement->execute();
+            execute_state state = statements_->execute();
+            if (state == execute_state::continued) {
+                continue;
+            } else if (state == execute_state::broken) {
+                break;
+            } else if (state == execute_state::returned) {
+                return execute_state::returned;
             }
         }
+        return execute_state::normal;
     }
  private:
     std::shared_ptr<expression_node> condition_;
-    std::vector<std::shared_ptr<statement_node>> statements_;
+    std::shared_ptr<block_node> statements_;
 };
 
 }   // namespace detail
