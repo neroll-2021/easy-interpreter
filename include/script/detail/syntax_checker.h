@@ -28,6 +28,8 @@ namespace detail {
  * 
  * statement -> expr_statement
  *            | block
+ *            | iter_statement
+ *            | jump_statement
  * 
  * expr_statement -> ;
  *                 | expression ;
@@ -35,6 +37,7 @@ namespace detail {
  * expression -> assign_expr
  * 
  * assign_expr -> logical_or
+ *              | IDENTIFIER = assign_expr
  * 
  * logical_or -> logical_and logical_or'
  * 
@@ -101,6 +104,14 @@ namespace detail {
  * params -> , type IDENTIFIER params
  *         | $
  * 
+ * iter_statement -> for ( expr_statement expr_statement expression ) statement
+ *                 | while (expression ) statement
+ * 
+ * jump_statement -> continue ;
+ *                 | break ;
+ *                 | return ;
+ *                 | return expression ;
+ * 
  */
 // template <typename T>
 class syntax_checker {
@@ -157,7 +168,7 @@ class syntax_checker {
         } else if (current_token().type == token_type::keyword_continue ||
                    current_token().type == token_type::keyword_break ||
                    current_token().type == token_type::keyword_return) {
-            check_jump();
+            check_jump_statement();
         } else {
             check_expr_statement();
         }
@@ -487,7 +498,7 @@ class syntax_checker {
         check_statement();
     }
 
-    void check_jump() {
+    void check_jump_statement() {
         if (current_token().type == token_type::keyword_continue) {
             match(token_type::keyword_continue);
             match(token_type::semicolon);
