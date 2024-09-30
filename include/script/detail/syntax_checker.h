@@ -340,8 +340,8 @@ class syntax_checker {
     }
 
     void check_args() {
-        if (current_token().type == token_type::semicolon) {
-            match(token_type::semicolon);
+        if (current_token().type == token_type::comma) {
+            match(token_type::comma);
             check_expr();
             check_args();
         }
