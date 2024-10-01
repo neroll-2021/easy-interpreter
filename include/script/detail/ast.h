@@ -19,7 +19,7 @@ namespace detail {
 
 enum class ast_node_type {
     function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
-    declaration, block
+    declaration, block, var_node
 };
 
 class ast_node {
@@ -90,6 +90,8 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
         case token_type::logical_and:
         case token_type::logical_or:
             return variable_type::boolean;
+        case token_type::assign:
+            return lhs_type;
         default:
             return variable_type::error;
     }
@@ -525,6 +527,77 @@ class logical_or_node : public binary_node {
     }
 };
 
+class assign_node : public binary_node {
+ public:
+    assign_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::assign, rhs) {}
+
+    value_t *evaluate() const override {
+        if (!program_scope.current_scope().contains(var_name)) {
+            throw std::runtime_error(
+                std::format("{} is not defined", var_name)
+            );
+        }
+        auto var = program_scope.current_scope().find(var_name);
+        if (left()->value_type() == variable_type::integer) {
+            auto l = std::dynamic_pointer_cast<variable_int>(var);
+            if (right()->value_type() == variable_type::integer) {
+                auto p = right()->evaluate();
+                auto pv = dynamic_cast<int_value *>(p);
+                program_scope.current_scope().set<int32_t>(var_name, pv->value());
+                return p;
+            } else if (right()->value_type() == variable_type::floating) {
+                auto p = right()->evaluate();
+                auto pv = dynamic_cast<float_value *>(p);
+                program_scope.current_scope().set<int32_t>(var_name, static_cast<int32_t>(pv->value()));
+                return p;
+            } else {
+                throw std::runtime_error(
+                    std::format("cannot assign {} to {}",
+                        variable_type_name(right()->value_type()), variable_type_name(left()->value_type()))
+                );
+            }
+        } else if (left()->value_type() == variable_type::floating) {
+            auto l = std::dynamic_pointer_cast<variable_float>(var);
+            if (right()->value_type() == variable_type::integer) {
+                auto p = right()->evaluate();
+                auto pv = dynamic_cast<int_value *>(p);
+                program_scope.current_scope().set<float>(var_name, static_cast<float>(pv->value()));
+                return p;
+            } else if (right()->value_type() == variable_type::floating) {
+                auto p = right()->evaluate();
+                auto pv = dynamic_cast<float_value *>(p);
+                program_scope.current_scope().set<float>(var_name, pv->value());
+                return p;
+            } else {
+                throw std::runtime_error(
+                    std::format("cannot assign {} to {}",
+                        variable_type_name(right()->value_type()), variable_type_name(left()->value_type()))
+                );
+            }
+        } else if (left()->value_type() == variable_type::boolean) {
+            if (right()->value_type() != variable_type::boolean) {
+                throw std::runtime_error(
+                    std::format("cannot assign {} to {}",
+                        variable_type_name(right()->value_type()), variable_type_name(left()->value_type()))
+                );
+            }
+            auto p = right()->evaluate();
+            auto v = dynamic_cast<boolean_value *>(p);
+            program_scope.current_scope().set<bool>(var_name, v->value());
+            return p;
+        } else {
+            throw std::runtime_error(
+                std::format("{} cannot be assigned",
+                    variable_type_name(left()->value_type()))
+            );
+        }
+    }
+
+ private:
+    std::string var_name;
+};
+
 class negative_node : public unary_node {
  public:
     negative_node(expression_node *value)
@@ -550,6 +623,37 @@ class negative_node : public unary_node {
             );
         }
     }
+};
+
+class variable_node : public expression_node {
+ public:
+    variable_node(std::string_view var_name)
+        : expression_node(ast_node_type::var_node) {
+        if (!program_scope.current_scope().contains(var_name)) {
+            throw std::runtime_error(
+                std::format("{} is not defined", var_name)
+            );
+        }
+        var_ = program_scope.current_scope().find(var_name);
+    }
+
+    value_t *evaluate() const override {
+        if (var_->type() == variable_type::integer) {
+            return new int_value(std::dynamic_pointer_cast<variable_int>(var_)->value());
+        }
+        if (var_->type() == variable_type::floating) {
+            return new float_value(std::dynamic_pointer_cast<variable_float>(var_)->value());
+        }
+        if (var_->type() == variable_type::boolean) {
+            return new boolean_value(std::dynamic_pointer_cast<variable_boolean>(var_)->value());
+        }
+        throw std::runtime_error(
+            std::format("invalid assignment type {}", variable_type_name(var_->type()))
+        );
+    }
+
+ private:
+    std::shared_ptr<variable> var_;
 };
 
 class int_node : public expression_node {

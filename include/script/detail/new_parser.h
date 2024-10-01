@@ -29,8 +29,24 @@ class parser {
 //  private:
 
     expression_node *parse_expr() {
-        throw std::runtime_error("parse_expr is not complete yet");
-        return nullptr;
+        return parse_assign_expr();
+    }
+
+
+
+    expression_node *parse_assign_expr() {
+        if (current_token_type() == token_type::identifier) {
+            std::string var_name{current_token().content};
+            auto var = program_scope.current_scope().find(var_name);
+            match(token_type::identifier);
+            match(token_type::assign);
+            expression_node *rhs = parse_assign_expr();
+            expression_node *var_node = new variable_node(var_name);
+            expression_node *assign = new assign_node(var_node, rhs);
+            return assign;
+        } else {
+            return parse_logical_or();
+        }
     }
 
     expression_node *parse_logical_or() {

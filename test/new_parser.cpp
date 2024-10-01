@@ -14,7 +14,7 @@ int main() {
     }
     nsd::parser parser{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
     try {
-        std::shared_ptr<nsd::expression_node> node{parser.parse_logical_or()};
+        std::shared_ptr<nsd::expression_node> node{parser.parse_assign_expr()};
         assert(node != nullptr);
 
         auto bin = std::dynamic_pointer_cast<nsd::binary_node>(node);
