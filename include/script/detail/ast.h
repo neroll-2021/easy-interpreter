@@ -10,6 +10,7 @@
 #include "script/detail/value_t.h"      // value_t
 #include "script/detail/operator.h"     // plus, minus, multiplies, divides
 #include "script/detail/scope.h"        // program_scope
+#include "script/detail/static_symbols.h"
 
 namespace neroll {
 
@@ -19,7 +20,7 @@ namespace detail {
 
 enum class ast_node_type {
     function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
-    declaration, block, var_node
+    declaration, block, var_node, expr_statement, empty
 };
 
 class ast_node {
@@ -527,10 +528,105 @@ class logical_or_node : public binary_node {
     }
 };
 
+class variable_node : public expression_node {
+ public:
+    variable_node(std::string_view name, variable_type type)
+        : expression_node(ast_node_type::var_node), var_name(name), var_type(type) {
+        // if (!program_scope.current_scope().contains(var_name)) {
+        //     throw std::runtime_error(
+        //         std::format("{} is not defined", var_name)
+        //     );
+        // }
+        // var_ = program_scope.current_scope().find(var_name);
+        auto result = static_symbol_table.find(name);
+        if (!result.has_value()) {
+            throw std::runtime_error(
+                std::format("{} is not defined", var_name)
+            );
+        }
+        auto [n, t] = result.value();
+        if (t == variable_type::integer) {
+            set_value_type(variable_type::integer);
+        }
+        if (t == variable_type::floating) {
+            set_value_type(variable_type::floating);
+        }
+        if (t == variable_type::boolean) {
+            set_value_type(variable_type::boolean);
+        }
+    }
+
+    const std::string &variable_name() const {
+        return var_name;
+    }
+
+    value_t *evaluate() const override {
+        if (var_type == variable_type::error) {
+            throw std::runtime_error(
+                std::format("{} is not declared", var_name)
+            );
+        }
+        auto var_ = program_scope.current_scope().find(var_name);
+        if (var_->type() == variable_type::integer) {
+            return new int_value(std::dynamic_pointer_cast<variable_int>(var_)->value());
+        }
+        if (var_->type() == variable_type::floating) {
+            return new float_value(std::dynamic_pointer_cast<variable_float>(var_)->value());
+        }
+        if (var_->type() == variable_type::boolean) {
+            return new boolean_value(std::dynamic_pointer_cast<variable_boolean>(var_)->value());
+        }
+        throw std::runtime_error(
+            std::format("invalid assignment type {}", variable_type_name(var_->type()))
+        );
+    }
+
+ private:
+    // std::shared_ptr<variable> var_;
+    std::string var_name;
+    variable_type var_type;
+};
+
 class assign_node : public binary_node {
  public:
     assign_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::assign, rhs) {}
+        : binary_node(lhs, token_type::assign, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+
+        auto l = std::dynamic_pointer_cast<variable_node>(left());
+        var_name = l->variable_name();
+
+        if (lhs_type == variable_type::integer) {
+            if (rhs_type != variable_type::integer && rhs_type != variable_type::floating) {
+                throw std::runtime_error(
+                    std::format("cannot assign {} to {}", variable_type_name(rhs_type),
+                        variable_type_name(lhs_type))
+                );
+            }
+        } else if (lhs_type == variable_type::floating) {
+            if (rhs_type != variable_type::integer && rhs_type != variable_type::floating) {
+                throw std::runtime_error(
+                    std::format("cannot assign {} to {}", variable_type_name(rhs_type),
+                        variable_type_name(lhs_type))
+                );
+            }
+        } else if (lhs_type == variable_type::boolean) {
+            if (rhs_type != variable_type::boolean) {
+                throw std::runtime_error(
+                    std::format("cannot assign {} to {}", variable_type_name(rhs_type),
+                        variable_type_name(lhs_type))
+                );
+            }
+        } else if (lhs_type == variable_type::error) {
+
+        } else {
+            throw std::runtime_error(
+                    std::format("{} cannot be assign",
+                        variable_type_name(lhs_type))
+                );
+        }
+    }
 
     value_t *evaluate() const override {
         if (!program_scope.current_scope().contains(var_name)) {
@@ -625,37 +721,6 @@ class negative_node : public unary_node {
     }
 };
 
-class variable_node : public expression_node {
- public:
-    variable_node(std::string_view var_name)
-        : expression_node(ast_node_type::var_node) {
-        if (!program_scope.current_scope().contains(var_name)) {
-            throw std::runtime_error(
-                std::format("{} is not defined", var_name)
-            );
-        }
-        var_ = program_scope.current_scope().find(var_name);
-    }
-
-    value_t *evaluate() const override {
-        if (var_->type() == variable_type::integer) {
-            return new int_value(std::dynamic_pointer_cast<variable_int>(var_)->value());
-        }
-        if (var_->type() == variable_type::floating) {
-            return new float_value(std::dynamic_pointer_cast<variable_float>(var_)->value());
-        }
-        if (var_->type() == variable_type::boolean) {
-            return new boolean_value(std::dynamic_pointer_cast<variable_boolean>(var_)->value());
-        }
-        throw std::runtime_error(
-            std::format("invalid assignment type {}", variable_type_name(var_->type()))
-        );
-    }
-
- private:
-    std::shared_ptr<variable> var_;
-};
-
 class int_node : public expression_node {
  public:
     int_node(int32_t value)
@@ -701,6 +766,21 @@ class boolean_node : public expression_node {
     bool value_;
 };
 
+class expr_statement_node : public statement_node {
+ public:
+    expr_statement_node(expression_node *expr)
+        : statement_node(ast_node_type::expr_statement), expr_(expr) {}
+    
+    execute_state execute() override {
+        expr_->evaluate();
+        return execute_state::normal;
+    }
+
+ private:
+    std::shared_ptr<expression_node> expr_;
+
+};
+
 class declaration_node : public statement_node {
  public:
     declaration_node(variable_type type, std::string_view name, expression_node *value)
@@ -723,6 +803,8 @@ class declaration_node : public statement_node {
             default:
                 throw std::runtime_error("invalid variable type");
         }
+
+        static_symbol_table.insert(name, type);
         
         if (value == nullptr) {
             switch (type) {
@@ -741,6 +823,8 @@ class declaration_node : public statement_node {
             // init_value_.reset(value);
             assert(init_value_ != nullptr);
         }
+
+        
     }
 
     execute_state execute() override {
@@ -782,7 +866,9 @@ class declaration_node : public statement_node {
 
 class block_node : public statement_node {
  public:
-    block_node() : statement_node(ast_node_type::block) {}
+    block_node() : statement_node(ast_node_type::block) {
+
+    }
 
     void insert(statement_node *statement) {
         statements_.emplace_back(statement);
@@ -804,6 +890,16 @@ class block_node : public statement_node {
 
  private:
     std::vector<std::shared_ptr<statement_node>> statements_;
+};
+
+class void_node : public expression_node {
+ public:
+    void_node() : expression_node(ast_node_type::empty) {}
+
+    value_t *evaluate() const override {
+        return new int_value(0);
+    }
+
 };
 
 class for_node : public statement_node {

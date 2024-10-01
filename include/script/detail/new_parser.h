@@ -10,6 +10,7 @@
 #include "script/detail/lexer.h"
 #include "script/detail/ring_buffer.h"
 #include "script/detail/ast.h"
+#include "script/detail/static_symbols.h"
 
 namespace neroll {
 
@@ -28,11 +29,129 @@ class parser {
 
 //  private:
 
+    statement_node *parse_program() {
+        return parse_items();
+    }
+
+    statement_node *parse_block() {
+        match(token_type::left_brace);
+        // block_node *block = new block_node();
+        // while (current_token_type() != token_type::right_brace) {
+        //     statement_node *item = parse_item();
+        //     block->insert(item);
+        // }
+        statement_node *block = parse_items();
+        match(token_type::right_brace);
+        return block;
+    }
+
+    statement_node *parse_items() {
+        static_symbol_table.push_scope();
+        block_node *block = new block_node();
+        while (current_token_type() != token_type::right_brace && current_token_type() != token_type::end_of_input) {
+            statement_node *item = parse_item();
+            block->insert(item);
+        }
+        static_symbol_table.pop_scope();
+        return block;
+    }
+
+    statement_node *parse_item() {
+        if (is_basic_type(current_token_type()) || current_token_type() == token_type::keyword_function) {
+            return parse_declaration();
+        } else {
+            return parse_statement();
+        }
+    }
+
+    statement_node *parse_declaration() {
+        if (is_basic_type(current_token_type())) {
+            variable_type var_type;
+            if (current_token_type() == token_type::keyword_int) {
+                var_type = variable_type::integer;
+                match(token_type::keyword_int);
+            } else if (current_token_type() == token_type::keyword_float) {
+                var_type = variable_type::floating;
+                match(token_type::keyword_float);
+            } else {
+                var_type = variable_type::boolean;
+                match(token_type::keyword_boolean);
+            }
+            std::string var_name{current_token().content};
+            match(token_type::identifier);
+            if (current_token_type() == token_type::assign) {
+                match(token_type::assign);
+                expression_node *expr = parse_assign_expr();
+                match(token_type::semicolon);
+                return new declaration_node(var_type, var_name, expr);
+            } else if (current_token_type() == token_type::semicolon) {
+                match(token_type::semicolon);
+                return new declaration_node(var_type, var_name, nullptr);
+            } else {
+                throw std::runtime_error(
+                    std::format("line {} column {}: expect a ;",
+                        current_token().line, current_token().column)
+                );
+            }
+        } else if (current_token_type() == token_type::keyword_function) {
+            // todo
+            // return parse_func_decl();
+            throw std::runtime_error("function declaration is not supported yet");
+        } else {
+            throw std::runtime_error(
+                std::format("line {} column {}: invalid declaration",
+                    current_token().line, current_token().column)
+            );
+        }
+    }
+    statement_node *parse_func_decl() {
+        match(token_type::keyword_function);
+        
+        return nullptr;
+    }
+
+    bool is_basic_type(token_type type) const {
+        return type == token_type::keyword_int || type == token_type::keyword_float ||
+               type == token_type::keyword_boolean;
+    }
+
+    statement_node *parse_statement() {
+        if (current_token_type() == token_type::left_brace) {
+            // parse_block
+            return nullptr;
+        } else if (is_iter_keyword(current_token_type())) {
+            // parse_iter_statement
+            return nullptr;
+        } else if (is_jump_keyword(current_token_type())) {
+            // parse_jump statement
+            return nullptr;
+        } else {
+            return parse_expr_statement();
+        }
+    }
+
+    bool is_iter_keyword(token_type type) const {
+        return type == token_type::keyword_for || type  == token_type::keyword_while;
+    }
+
+    bool is_jump_keyword(token_type type) const {
+        return type == token_type::keyword_continue || type == token_type::keyword_break ||
+               type == token_type::keyword_return;
+    }
+
+    statement_node *parse_expr_statement() {
+        if (current_token_type() == token_type::semicolon) {
+            match(token_type::semicolon);
+            return new expr_statement_node(new void_node);
+        } else {
+            expression_node *expr = parse_expr();
+            return new expr_statement_node(expr);
+        }
+    }
+
     expression_node *parse_expr() {
         return parse_assign_expr();
     }
-
-
 
     expression_node *parse_assign_expr() {
         if (current_token_type() == token_type::identifier) {
@@ -41,8 +160,16 @@ class parser {
             match(token_type::identifier);
             match(token_type::assign);
             expression_node *rhs = parse_assign_expr();
-            expression_node *var_node = new variable_node(var_name);
+            expression_node *var_node = nullptr;
+            if (var == nullptr) {
+                std::println("null");
+                var_node = new variable_node(var_name, variable_type::error);
+            } else {
+                std::println("type: {}", variable_type_name(var->type()));
+                var_node = new variable_node(var_name, var->type());
+            }
             expression_node *assign = new assign_node(var_node, rhs);
+            std::println("xxxxx");
             return assign;
         } else {
             return parse_logical_or();
@@ -202,7 +329,7 @@ class parser {
                 if (current_token_type() == token_type::left_parenthese) {
                     throw std::runtime_error("function call is not supported yet");
                 } else {
-                    if (is_variable_declared(var_name)) {
+                    // if (is_variable_declared(var_name)) {
                         std::shared_ptr<variable> var = find_variable(var_name);
                         switch (var->type()) {
                             case variable_type::integer: {
@@ -223,12 +350,12 @@ class parser {
                                         variable_type_name(var->type()))
                                 );
                         }
-                    } else {
-                        throw std::runtime_error(
-                            std::format("line {} column {}: {} is not defined",
-                                line, col, var_name)
-                        );
-                    }
+                    // } else {
+                        // throw std::runtime_error(
+                        //     std::format("line {} column {}: {} is not defined",
+                        //         line, col, var_name)
+                        // );
+                    // }
                 }
             }
             break;
