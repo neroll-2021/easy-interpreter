@@ -14,8 +14,12 @@ int main() {
     }
     nsd::parser parser{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
     try {
-        std::shared_ptr<nsd::expression_node> node{parser.parse_equal()};
+        std::shared_ptr<nsd::expression_node> node{parser.parse_logical_or()};
         assert(node != nullptr);
+
+        auto bin = std::dynamic_pointer_cast<nsd::binary_node>(node);
+        std::println("{}", nsd::variable_type_name(bin->left()->value_type()));
+        std::println("{}", nsd::variable_type_name(bin->right()->value_type()));
 
         std::shared_ptr<nsd::value_t> value{node->evaluate()};
         assert(value != nullptr);

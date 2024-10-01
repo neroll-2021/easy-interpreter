@@ -33,18 +33,46 @@ class parser {
         return nullptr;
     }
 
+    expression_node *parse_logical_or() {
+        expression_node *expr1 = parse_logical_and();
+        expression_node *expr2 = nullptr;
+        expression_node *op = nullptr;
+        while (current_token_type() == token_type::logical_or) {
+            match(token_type::logical_or);
+            expr2 = parse_logical_and();
+            op = new logical_or_node(expr1, expr2);
+            expr1 = op;
+            expr2 = nullptr;
+        }
+        return expr1;
+    }
+
+    expression_node *parse_logical_and() {
+        expression_node *expr1 = parse_equal();
+        expression_node *expr2 = nullptr;
+        expression_node *op = nullptr;
+        while (current_token_type() == token_type::logical_and) {
+            match(token_type::logical_and);
+            expr2 = parse_equal();
+            op = new logical_and_node(expr1, expr2);
+            expr1 = op;
+            expr2 = nullptr;
+        }
+        return expr1;
+    }
+
     expression_node *parse_equal() {
-        expression_node *expr1 = parse_add();
+        expression_node *expr1 = parse_relation();
         expression_node *expr2 = nullptr;
         expression_node *op = nullptr;
         while (current_token_type() == token_type::equal || current_token_type() == token_type::not_equal) {
             if (current_token_type() == token_type::equal) {
                 match(token_type::equal);
-                expr2 = parse_add();
+                expr2 = parse_relation();
                 op = new equal_node(expr1, expr2);
             } else {
                 match(token_type::not_equal);
-                expr2 = parse_add();
+                expr2 = parse_relation();
                 op = new not_equal_node(expr1, expr2);
             }
             expr1 = op;

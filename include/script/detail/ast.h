@@ -84,8 +84,11 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
                 return variable_type::error;
             return variable_type::integer;
         case token_type::equal:
+        case token_type::not_equal:
         case token_type::less:
         case token_type::greater:
+        case token_type::logical_and:
+        case token_type::logical_or:
             return variable_type::boolean;
         default:
             return variable_type::error;
@@ -459,6 +462,66 @@ class not_equal_node : public binary_node {
                 return new boolean_value(result);
             }
         }
+    }
+};
+
+class logical_and_node : public binary_node {
+ public:
+    logical_and_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::logical_and, rhs) {}
+    
+    value_t *evaluate() const override {
+        // assert(left()->value_type() == variable_type::boolean);
+        // assert(right()->value_type() == variable_type::boolean);
+
+        if (left()->value_type() != variable_type::boolean ||
+            right()->value_type() != variable_type::boolean) {
+            throw std::runtime_error(
+                std::format("invalid && between {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+
+        value_t *lhs_value = left()->evaluate();
+        value_t *rhs_value = right()->evaluate();
+
+        auto p1 = dynamic_cast<boolean_value *>(lhs_value);
+        auto p2 = dynamic_cast<boolean_value *>(rhs_value);
+
+        if (p1->value() == false)
+            return new boolean_value(false);
+
+        return new boolean_value(p1->value() && p2->value());
+    }
+};
+
+class logical_or_node : public binary_node {
+ public:
+    logical_or_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::logical_or, rhs) {}
+    
+    value_t *evaluate() const override {
+        // assert(left()->value_type() == variable_type::boolean);
+        // assert(right()->value_type() == variable_type::boolean);
+
+        if (left()->value_type() != variable_type::boolean ||
+            right()->value_type() != variable_type::boolean) {
+            throw std::runtime_error(
+                std::format("invalid || between {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+
+        value_t *lhs_value = left()->evaluate();
+        value_t *rhs_value = right()->evaluate();
+
+        auto p1 = dynamic_cast<boolean_value *>(lhs_value);
+        auto p2 = dynamic_cast<boolean_value *>(rhs_value);
+
+        if (p1->value() == true)
+            return new boolean_value(true);
+
+        return new boolean_value(p1->value() || p2->value());
     }
 };
 
