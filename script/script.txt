@@ -10,3 +10,7 @@ int b = 0;
 for (a = 1; a < 100; a = a + 1) {
     b = b + 1;
 }
+
+function add(int x, int y) : int {
+    return x + y;
+}

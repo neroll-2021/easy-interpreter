@@ -26,7 +26,8 @@ int main() {
     try {
         assert(node != nullptr);
 
-        nsd::execute_state state = node->execute();
+        std::pair<nsd::execute_state, nsd::value_t *> result = node->execute();
+        auto [state, value] = result;
 
         assert(state == nsd::execute_state::normal);
 

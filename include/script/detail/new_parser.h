@@ -101,8 +101,8 @@ class parser {
             }
         } else if (current_token_type() == token_type::keyword_function) {
             // todo
-            // return parse_func_decl();
-            throw std::runtime_error("function declaration is not supported yet");
+            return parse_func_decl();
+            // throw std::runtime_error("function declaration is not supported yet");
         } else {
             throw std::runtime_error(
                 std::format("line {} column {}: invalid declaration",
@@ -110,14 +110,85 @@ class parser {
             );
         }
     }
+    
     statement_node *parse_func_decl() {
         match(token_type::keyword_function);
         std::string name{current_token().content};
         match(token_type::identifier);
         match(token_type::left_parenthese);
+        // parse_param_list
+        std::vector<declaration_node *> params = parse_param_list();
+
+        match(token_type::right_parenthese);
+        match(token_type::colon);
         
+        if (!is_basic_type(current_token_type())) {
+            throw std::runtime_error(
+                std::format("line {} column {}: function must return a type of int, float or boolean",
+                    current_token().line, current_token().column)
+            );
+        }
+
+        variable_type return_type;
+
+        if (current_token_type() == token_type::keyword_int) {
+            return_type = variable_type::integer;
+            match(token_type::keyword_int);
+        } else if (current_token_type() == token_type::keyword_float) {
+            return_type = variable_type::floating;
+            match(token_type::keyword_float);
+        } else {
+            return_type = variable_type::boolean;
+            match(token_type::keyword_boolean);
+        }
+
+        statement_node *body = parse_block();
+
+        func_decl_node *node = new func_decl_node(return_type, name, body);
+
+        for (const auto p : params) {
+            node->add_param(p);
+        }
         
-        return nullptr;
+        return node;
+    }
+
+    std::vector<declaration_node *> parse_param_list() {
+        std::vector<declaration_node *> result;
+        int index = 0;
+        while (current_token_type() != token_type::right_parenthese && current_token_type() != token_type::end_of_input) {
+            if (index != 0) {
+                match(token_type::comma);
+            }
+            if (!is_basic_type(current_token_type())) {
+                throw std::runtime_error(
+                    std::format("line {} column {}: parameter type must be a basic type",
+                        current_token().line, current_token().column)
+                );
+            }
+            declaration_node *node = parse_param();
+            result.push_back(node);
+            index++;
+        }
+        return result;
+    }
+
+    declaration_node *parse_param() {
+        variable_type type;
+        if (current_token_type() == token_type::keyword_int) {
+            match(token_type::keyword_int);
+            type = variable_type::integer;
+        } else if (current_token_type() == token_type::keyword_float) {
+            match(token_type::keyword_float);
+            type = variable_type::floating;
+        } else {
+            match(token_type::keyword_boolean);
+            type = variable_type::boolean;
+        }
+        std::string name{current_token().content};
+        match(token_type::identifier);
+        declaration_node *node = new declaration_node(type, name, nullptr);
+        return node;
     }
 
     bool is_basic_type(token_type type) const {
@@ -125,23 +196,48 @@ class parser {
                type == token_type::keyword_boolean;
     }
 
+    statement_node *parse_block() {
+        match(token_type::left_brace);
+        static_symbol_table.push_scope();
+        statement_node *items = parse_items();
+        static_symbol_table.pop_scope();
+        match(token_type::right_brace);
+        return items;
+    }
+
     statement_node *parse_statement() {
         if (current_token_type() == token_type::left_brace) {
             // parse_block
-            match(token_type::left_brace);
-            static_symbol_table.push_scope();
-            statement_node *items = parse_items();
-            static_symbol_table.pop_scope();
-            match(token_type::right_brace);
-            return items;
+            return parse_block();
         } else if (is_iter_keyword(current_token_type())) {
             // parse_iter_statement
             return parse_iter_statement();
         } else if (is_jump_keyword(current_token_type())) {
             // parse_jump statement
-            return nullptr;
+            return parse_jump_statement();
         } else {
             return parse_expr_statement();
+        }
+    }
+
+    statement_node *parse_jump_statement() {
+        if (current_token_type() == token_type::keyword_continue) {
+            match(token_type::keyword_continue);
+            match(token_type::semicolon);
+            return new continue_node;
+        } else if (current_token_type() == token_type::keyword_break) {
+            match(token_type::keyword_break);
+            match(token_type::keyword_break);
+            return new break_node;
+        } else {
+            match(token_type::keyword_return);
+            if (current_token_type() == token_type::semicolon) {
+                return new return_node(nullptr);
+            } else {
+                expression_node *expr = parse_expr();
+                match(token_type::semicolon);
+                return new return_node(expr);
+            }
         }
     }
 

@@ -11,6 +11,7 @@
 #include "script/detail/operator.h"     // plus, minus, multiplies, divides
 #include "script/detail/scope.h"        // program_scope
 #include "script/detail/static_symbols.h"
+#include "script/detail/function.h"
 
 namespace neroll {
 
@@ -20,7 +21,7 @@ namespace detail {
 
 enum class ast_node_type {
     func_decl, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
-    declaration, block, var_node, expr_statement, empty
+    declaration, block, var_node, expr_statement, empty, jump
 };
 
 class ast_node {
@@ -69,7 +70,7 @@ class statement_node : public ast_node {
     
     virtual ~statement_node() {}
 
-    virtual execute_state execute() = 0;
+    virtual std::pair<execute_state, value_t *> execute() = 0;
 };
 
 // 
@@ -772,9 +773,9 @@ class expr_statement_node : public statement_node, expression_node {
         : statement_node(ast_node_type::expr_statement),
         expression_node(ast_node_type::expr_statement), expr_(expr) {}
     
-    execute_state execute() override {
+    std::pair<execute_state, value_t *> execute() override {
         expr_->evaluate();
-        return execute_state::normal;
+        return {execute_state::normal, nullptr};
     }
 
     value_t *evaluate() const override {
@@ -836,7 +837,7 @@ class declaration_node : public statement_node {
         
     }
 
-    execute_state execute() override {
+    std::pair<execute_state, value_t *> execute() override {
         // program_scope.current_scope().insert()
         switch (type_) {
             case variable_type::integer: {
@@ -863,7 +864,7 @@ class declaration_node : public statement_node {
             default:
                 throw std::runtime_error("invalid variable type (unreachable code)");
         }
-        return execute_state::normal;
+        return {execute_state::normal, nullptr};
     }
 
  private:
@@ -887,14 +888,15 @@ class block_node : public statement_node {
         return statements_;
     }
 
-    execute_state execute() override {
+    std::pair<execute_state, value_t *> execute() override {
         for (auto &statement : statements_) {
-            execute_state result = statement->execute();
-            if (result != execute_state::normal) {
+            std::pair<execute_state, value_t *> result = statement->execute();
+            auto [state, value] = result;
+            if (state != execute_state::normal) {
                 return result;
             }
         }
-        return execute_state::normal;
+        return {execute_state::normal, nullptr};
     }
 
  private:
@@ -918,22 +920,23 @@ class for_node : public statement_node {
         : statement_node(ast_node_type::node_for), init_statement_(init),
           condition_(condition), update_(update), statements_(block) {}
 
-    execute_state execute() override {
+    std::pair<execute_state, value_t *> execute() override {
         assert(condition_->value_type() == variable_type::boolean);
         init_statement_->execute();
         while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
-            execute_state state = statements_->execute();
+            std::pair<execute_state, value_t *> result = statements_->execute();
+            auto [state, value] = result;
             if (state == execute_state::continued) {
                 update_->evaluate();
                 continue;
             } else if (state == execute_state::broken) {
                 break;
             } else if (state == execute_state::returned) {
-                return execute_state::returned;
+                return {execute_state::returned, value};
             }
             update_->evaluate();
         }
-        return execute_state::normal;
+        return {execute_state::normal, nullptr};
     }
 
  private:
@@ -949,19 +952,20 @@ class while_node : public statement_node {
         : statement_node(ast_node_type::node_while),
           condition_(condition), statements_(body) {}
 
-    execute_state execute() override {
+    std::pair<execute_state, value_t *> execute() override {
         assert(condition_->value_type() == variable_type::boolean);
         while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
-            execute_state state = statements_->execute();
+            std::pair<execute_state, value_t *> result = statements_->execute();
+            auto [state, value] = result;
             if (state == execute_state::continued) {
                 continue;
             } else if (state == execute_state::broken) {
                 break;
             } else if (state == execute_state::returned) {
-                return execute_state::returned;
+                return result;
             }
         }
-        return execute_state::normal;
+        return {execute_state::normal, nullptr};
     }
  private:
     std::shared_ptr<expression_node> condition_;
@@ -970,15 +974,27 @@ class while_node : public statement_node {
 
 class func_decl_node : public statement_node {
  public:
-    func_decl_node(variable_type type, std::string_view name)
+    func_decl_node(variable_type type, std::string_view name, statement_node *body)
         : statement_node(ast_node_type::func_decl),
-          return_type_(type), name_(name) {}
+          return_type_(type), name_(name), body_(body) {}
 
-    execute_state execute() override {
-        execute_state state = body_->execute();
-        if (state == execute_state::returned) {
-            return execute_state::normal;
-        }
+    std::pair<execute_state, value_t *> execute() override {
+        // std::pair<execute_state, value_t *> result = body_->execute();
+        // auto [state, value] = result;
+        // if (state == execute_state::returned) {
+        //     return {execute_state::normal, value};
+        // } else if (state == execute_state::continued) {
+        //     throw std::runtime_error("continue must in a loop");
+        // } else {
+        //     throw std::runtime_error("break must in a loop");
+        // }
+        func_decls.add(name_, body_.get());
+        return {execute_state::normal, nullptr};
+        
+    }
+
+    void add_param(declaration_node *dec) {
+        param_.emplace_back(dec);
     }
 
  private:
@@ -986,7 +1002,39 @@ class func_decl_node : public statement_node {
     std::string name_;
     std::vector<std::shared_ptr<declaration_node>> param_;
     std::shared_ptr<statement_node> body_;
+};
 
+class continue_node : public statement_node {
+ public:
+    continue_node() : statement_node(ast_node_type::jump) {}
+
+    std::pair<execute_state, value_t *> execute() override {
+        return {execute_state::continued, nullptr};
+    }
+};
+
+class break_node : public statement_node {
+ public:
+    break_node() : statement_node(ast_node_type::jump) {}
+
+    std::pair<execute_state, value_t *> execute() override {
+        return {execute_state::broken, nullptr};
+    }
+};
+
+class return_node : public statement_node {
+ public:
+    return_node(expression_node *expr)
+        : statement_node(ast_node_type::jump), expr_(expr) {}
+
+    std::pair<execute_state, value_t *> execute() override {
+        if (expr_ == nullptr)
+            return {execute_state::returned, nullptr};
+        return {execute_state::returned, expr_->evaluate()};
+    }
+
+ private:
+    std::shared_ptr<expression_node> expr_;
 };
 
 class func_call_node : public expression_node {
