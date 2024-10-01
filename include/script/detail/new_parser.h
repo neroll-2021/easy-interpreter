@@ -154,7 +154,7 @@ class parser {
     }
 
     expression_node *parse_assign_expr() {
-        if (current_token_type() == token_type::identifier) {
+        if (current_token_type() == token_type::identifier && next_token(1).type == token_type::assign) {
             std::string var_name{current_token().content};
             auto var = program_scope.current_scope().find(var_name);
             match(token_type::identifier);
@@ -330,24 +330,33 @@ class parser {
                     throw std::runtime_error("function call is not supported yet");
                 } else {
                     // if (is_variable_declared(var_name)) {
-                        std::shared_ptr<variable> var = find_variable(var_name);
-                        switch (var->type()) {
+                        auto var = find_variable(var_name);
+                        if (!var.has_value()) {
+                            throw std::runtime_error(
+                                std::format("{} is not defined", var_name)
+                            );
+                        }
+                        auto [n, t] = var.value();
+                        switch (t) {
                             case variable_type::integer: {
-                                auto p = std::dynamic_pointer_cast<variable_int>(var);
-                                return new int_node(p->value());
+                                // auto p = std::dynamic_pointer_cast<variable_int>(var);
+                                // return new int_node(p->value());
+                                return new variable_node(n, t);
                             }
                             case variable_type::floating: {
-                                auto p = std::dynamic_pointer_cast<variable_float>(var);
-                                return new float_node(p->value());
+                                // auto p = std::dynamic_pointer_cast<variable_float>(var);
+                                // return new float_node(p->value());
+                                return new variable_node(n, t);
                             }
                             case variable_type::boolean: {
-                                auto p = std::dynamic_pointer_cast<variable_boolean>(var);
-                                return new boolean_node(p->value());
+                                // auto p = std::dynamic_pointer_cast<variable_boolean>(var);
+                                // return new boolean_node(p->value());
+                                return new variable_node(n, t);
                             }
                             default:
                                 throw std::runtime_error(
                                     std::format("invalid variable type {} in expression",
-                                        variable_type_name(var->type()))
+                                        variable_type_name(t))
                                 );
                         }
                     // } else {
@@ -373,8 +382,9 @@ class parser {
         return program_scope.current_scope().contains(variable_name);
     }
 
-    std::shared_ptr<variable> find_variable(std::string_view variable_name) const {
-        return program_scope.current_scope().find(variable_name);
+    std::optional<std::pair<std::string, variable_type>> find_variable(std::string_view variable_name) const {
+        // return program_scope.current_scope().find(variable_name);
+        return static_symbol_table.find(variable_name);
     }
 
     template <typename T>
