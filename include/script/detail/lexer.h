@@ -50,6 +50,7 @@ enum class token_type {
     semicolon,              // ;
     assign,                 // =
     equal,                  // ==
+    not_equal,              // !=
     less,                   // <
     greater,                // >
     left_parenthese,        // (
@@ -129,6 +130,8 @@ const char *token_type_name(token_type type) {
             return "=";
         case token_type::equal:
             return "==";
+        case token_type::not_equal:
+            return "!=";
         case token_type::less:
             return "<";
         case token_type::greater:
@@ -213,14 +216,18 @@ class lexer {
                 unget();
                 return token("&", token_type::amp, position_);
             case '|':
+                if (get() == '|')
+                    return token{"||", token_type::logical_or, position_};
+                unget();
                 return token{"|", token_type::vertical_bar, position_};
             case ':':
                 return token{":", token_type::colon, position_};
             case ',':
                 return token{",", token_type::comma, position_};
             case '!':
-                if (get() == '|')
-                    return token{"||", token_type::logical_or, position_};
+                if (get() == '=')
+                    return token{"!=", token_type::not_equal, position_};
+                unget();
                 return token{"!", token_type::exclamation, position_};
             case '\'':
                 return token{"'", token_type::single_quote, position_};

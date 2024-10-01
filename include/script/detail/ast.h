@@ -271,10 +271,203 @@ class modulus_node : public binary_node {
     }
 };
 
+bool is_relation_oeprator(token_type type) {
+    return type == token_type::less || type == token_type::greater ||
+           type == token_type::equal || type == token_type::not_equal;
+}
+
+bool can_compare(variable_type lhs, token_type op, variable_type rhs) {
+    assert(is_relation_oeprator(op));
+    if (op == token_type::less || op == token_type::greater) {
+        if (lhs == variable_type::boolean || rhs == variable_type::boolean) {
+            return false;
+        }
+        if (lhs == variable_type::function || rhs == variable_type::function) {
+            return false;
+        }
+        return true;
+    } else {
+        if (lhs == variable_type::function || rhs == variable_type::function) {
+            return false;
+        }
+        return true;
+    }
+}
+
+class less_node : public binary_node {
+ public:
+    less_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::less, rhs) {}
+ 
+    value_t *evaluate() const override {
+        value_t *left_value = left()->evaluate();
+        value_t *right_value = right()->evaluate();
+
+        if (!can_compare(left()->value_type(), token_type::less, right()->value_type())) {
+            throw std::runtime_error(
+                std::format("cannot compare {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+        
+        if (left_value->type() == variable_type::integer) {
+            auto p1 = dynamic_cast<int_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() < p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() < p2->value();
+                return new boolean_value(result);
+            }
+        } else {
+            auto p1 = dynamic_cast<float_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() < p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() < p2->value();
+                return new boolean_value(result);
+            }
+        }
+    }
+};
+
+class greater_node : public binary_node {
+ public:
+    greater_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::greater, rhs) {}
+
+    value_t *evaluate() const override {
+        value_t *left_value = left()->evaluate();
+        value_t *right_value = right()->evaluate();
+
+        if (!can_compare(left()->value_type(), token_type::greater, right()->value_type())) {
+            throw std::runtime_error(
+                std::format("cannot compare {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+        
+        if (left_value->type() == variable_type::integer) {
+            auto p1 = dynamic_cast<int_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() > p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() > p2->value();
+                return new boolean_value(result);
+            }
+        } else {
+            auto p1 = dynamic_cast<float_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() > p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() > p2->value();
+                return new boolean_value(result);
+            }
+        }
+    }
+};
+
+class equal_node : public binary_node {
+ public:
+    equal_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::equal, rhs) {}
+
+    value_t *evaluate() const override {
+        value_t *left_value = left()->evaluate();
+        value_t *right_value = right()->evaluate();
+
+        if (!can_compare(left()->value_type(), token_type::equal, right()->value_type())) {
+            throw std::runtime_error(
+                std::format("cannot compare {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+        
+        if (left_value->type() == variable_type::integer) {
+            auto p1 = dynamic_cast<int_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() == p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() == p2->value();
+                return new boolean_value(result);
+            }
+        } else {
+            auto p1 = dynamic_cast<float_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() == p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() == p2->value();
+                return new boolean_value(result);
+            }
+        }
+    }
+};
+
+class not_equal_node : public binary_node {
+ public:
+    not_equal_node(expression_node *lhs, expression_node *rhs)
+        : binary_node(lhs, token_type::not_equal, rhs) {}
+
+    value_t *evaluate() const override {
+        value_t *left_value = left()->evaluate();
+        value_t *right_value = right()->evaluate();
+
+        if (!can_compare(left()->value_type(), token_type::not_equal, right()->value_type())) {
+            throw std::runtime_error(
+                std::format("cannot compare {} and {}",
+                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            );
+        }
+        
+        if (left_value->type() == variable_type::integer) {
+            auto p1 = dynamic_cast<int_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() != p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() != p2->value();
+                return new boolean_value(result);
+            }
+        } else {
+            auto p1 = dynamic_cast<float_value *>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = dynamic_cast<int_value *>(right_value);
+                bool result = p1->value() != p2->value();
+                return new boolean_value(result);
+            } else {
+                auto p2 = dynamic_cast<float_value *>(right_value);
+                bool result = p1->value() != p2->value();
+                return new boolean_value(result);
+            }
+        }
+    }
+};
+
 class negative_node : public unary_node {
  public:
     negative_node(expression_node *value)
-        : unary_node(value) {}
+        : unary_node(value) {
+        set_value_type(value->value_type());
+    }
 
     value_t *evaluate() const override {
         value_t *val = value()->evaluate();
