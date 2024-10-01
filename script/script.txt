@@ -1,3 +1,12 @@
-boolean b = true;
+int a = 10;
 
-b = 1.0;
+{
+    int b = 20;
+    a = 15;
+}
+
+int b = 0;
+
+for (a = 1; a < 100; a = a + 1) {
+    b = b + 1;
+}

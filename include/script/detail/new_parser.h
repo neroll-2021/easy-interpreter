@@ -112,6 +112,10 @@ class parser {
     }
     statement_node *parse_func_decl() {
         match(token_type::keyword_function);
+        std::string name{current_token().content};
+        match(token_type::identifier);
+        match(token_type::left_parenthese);
+        
         
         return nullptr;
     }
@@ -132,12 +136,38 @@ class parser {
             return items;
         } else if (is_iter_keyword(current_token_type())) {
             // parse_iter_statement
-            return nullptr;
+            return parse_iter_statement();
         } else if (is_jump_keyword(current_token_type())) {
             // parse_jump statement
             return nullptr;
         } else {
             return parse_expr_statement();
+        }
+    }
+
+    statement_node *parse_iter_statement() {
+        if (current_token_type() == token_type::keyword_for) {
+            match(token_type::keyword_for);
+            match(token_type::left_parenthese);
+            expr_statement_node *init = parse_expr_statement();
+            expr_statement_node *condition = parse_expr_statement();
+            expression_node *update = parse_expr();
+            match(token_type::right_parenthese);
+            statement_node *body = parse_statement();
+            for_node *node = new for_node(init, condition, update, body);
+            return node;
+        } else if (current_token_type() == token_type::keyword_while) {
+            match(token_type::keyword_while);
+            match(token_type::left_parenthese);
+            expression_node *expr = parse_expr();
+            match(token_type::right_parenthese);
+            statement_node *body = parse_statement();
+            while_node *node = new while_node(expr, body);
+            return node;
+        } else {
+            throw std::runtime_error(
+                std::format("invalid iter keyword {}", current_token().content)
+            );
         }
     }
 
@@ -150,13 +180,15 @@ class parser {
                type == token_type::keyword_return;
     }
 
-    statement_node *parse_expr_statement() {
+    expr_statement_node *parse_expr_statement() {
         if (current_token_type() == token_type::semicolon) {
             match(token_type::semicolon);
             return new expr_statement_node(new void_node);
         } else {
             expression_node *expr = parse_expr();
-            return new expr_statement_node(expr);
+            auto res = new expr_statement_node(expr);
+            match(token_type::semicolon);
+            return res;
         }
     }
 

@@ -19,7 +19,7 @@ namespace script {
 namespace detail {
 
 enum class ast_node_type {
-    function, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
+    func_decl, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
     declaration, block, var_node, expr_statement, empty
 };
 
@@ -47,10 +47,10 @@ class expression_node : public ast_node {
 
     virtual value_t *evaluate() const = 0;
 
-    variable_type value_type() const {
+    virtual variable_type value_type() const {
         return value_type_;
     }
-    void set_value_type(variable_type value_type) {
+    virtual void set_value_type(variable_type value_type) {
         value_type_ = value_type;
     }
 
@@ -766,14 +766,23 @@ class boolean_node : public expression_node {
     bool value_;
 };
 
-class expr_statement_node : public statement_node {
+class expr_statement_node : public statement_node, expression_node {
  public:
     expr_statement_node(expression_node *expr)
-        : statement_node(ast_node_type::expr_statement), expr_(expr) {}
+        : statement_node(ast_node_type::expr_statement),
+        expression_node(ast_node_type::expr_statement), expr_(expr) {}
     
     execute_state execute() override {
         expr_->evaluate();
         return execute_state::normal;
+    }
+
+    value_t *evaluate() const override {
+        return expr_->evaluate();
+    }
+
+    variable_type value_type() const {
+        return expr_->value_type();
     }
 
  private:
@@ -904,11 +913,14 @@ class void_node : public expression_node {
 
 class for_node : public statement_node {
  public:
-    for_node() : statement_node(ast_node_type::node_for) {}
+    for_node(expr_statement_node *init, expr_statement_node *condition,
+        expression_node *update, statement_node *block)
+        : statement_node(ast_node_type::node_for), init_statement_(init),
+          condition_(condition), update_(update), statements_(block) {}
 
     execute_state execute() override {
         assert(condition_->value_type() == variable_type::boolean);
-        init_statement_->evaluate();
+        init_statement_->execute();
         while (dynamic_cast<boolean_value *>(condition_->evaluate())->value()) {
             execute_state state = statements_->execute();
             if (state == execute_state::continued) {
@@ -925,15 +937,17 @@ class for_node : public statement_node {
     }
 
  private:
-    std::shared_ptr<expression_node> init_statement_;
-    std::shared_ptr<expression_node> condition_;
+    std::shared_ptr<expr_statement_node> init_statement_;
+    std::shared_ptr<expr_statement_node> condition_;
     std::shared_ptr<expression_node> update_;
-    std::shared_ptr<block_node> statements_;
+    std::shared_ptr<statement_node> statements_;
 };
 
-class while_node : statement_node {
+class while_node : public statement_node {
  public:
-    while_node() : statement_node(ast_node_type::node_while) {}
+    while_node(expression_node *condition, statement_node *body)
+        : statement_node(ast_node_type::node_while),
+          condition_(condition), statements_(body) {}
 
     execute_state execute() override {
         assert(condition_->value_type() == variable_type::boolean);
@@ -951,7 +965,40 @@ class while_node : statement_node {
     }
  private:
     std::shared_ptr<expression_node> condition_;
-    std::shared_ptr<block_node> statements_;
+    std::shared_ptr<statement_node> statements_;
+};
+
+class func_decl_node : public statement_node {
+ public:
+    func_decl_node(variable_type type, std::string_view name)
+        : statement_node(ast_node_type::func_decl),
+          return_type_(type), name_(name) {}
+
+    execute_state execute() override {
+        execute_state state = body_->execute();
+        if (state == execute_state::returned) {
+            return execute_state::normal;
+        }
+    }
+
+ private:
+    variable_type return_type_;
+    std::string name_;
+    std::vector<std::shared_ptr<declaration_node>> param_;
+    std::shared_ptr<statement_node> body_;
+
+};
+
+class func_call_node : public expression_node {
+ public:
+    
+    value_t *evaluate() const override {
+        
+    }
+
+ private:
+    std::string name_;
+    std::vector<std::shared_ptr<expression_node>> args_;
 };
 
 }   // namespace detail
