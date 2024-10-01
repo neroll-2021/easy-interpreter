@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <format>
 #include <optional>
+#include <ranges>
 
 #include "script/detail/variable.h"
 
@@ -25,16 +26,28 @@ class static_symbols {
         scopes.pop_back();
     }
 
+    bool empty() const {
+        return scopes.empty();
+    }
+
     void insert(std::string_view var_name, variable_type type) {
         scopes.back().insert({std::string{var_name}, type});
     }
 
     std::optional<std::pair<std::string, variable_type>> find(std::string_view name) const {
-        auto iter = scopes.back().find(name);
-        if (iter == scopes.back().end()) {
-            return std::nullopt;
+        // auto iter = scopes.back().find(name);
+        // if (iter == scopes.back().end()) {
+        //     return std::nullopt;
+        // }
+        // return *iter;
+        for (const auto &scope : scopes | std::views::reverse) {
+            auto iter = scope.find(name);
+            if (iter != scope.end()) {
+                return *iter;
+            }
         }
-        return *iter;
+        return std::nullopt;
+
     }
 
  private:

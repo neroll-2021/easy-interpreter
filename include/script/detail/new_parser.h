@@ -30,29 +30,35 @@ class parser {
 //  private:
 
     statement_node *parse_program() {
-        return parse_items();
+        static_symbol_table.push_scope();
+        statement_node *node = parse_items();
+        static_symbol_table.pop_scope();
+        return node;
     }
 
-    statement_node *parse_block() {
-        match(token_type::left_brace);
-        // block_node *block = new block_node();
-        // while (current_token_type() != token_type::right_brace) {
-        //     statement_node *item = parse_item();
-        //     block->insert(item);
-        // }
-        statement_node *block = parse_items();
-        match(token_type::right_brace);
-        return block;
-    }
+    // statement_node *parse_block() {
+    //     match(token_type::left_brace);
+    //     // block_node *block = new block_node();
+    //     // while (current_token_type() != token_type::right_brace) {
+    //     //     statement_node *item = parse_item();
+    //     //     block->insert(item);
+    //     // }
+    //     static_symbol_table.push_scope();
+    //     statement_node *block = parse_items();
+    //     assert(!static_symbol_table.empty());
+    //     static_symbol_table.pop_scope();
+    //     match(token_type::right_brace);
+    //     return block;
+    // }
 
     statement_node *parse_items() {
-        static_symbol_table.push_scope();
+        
         block_node *block = new block_node();
         while (current_token_type() != token_type::right_brace && current_token_type() != token_type::end_of_input) {
             statement_node *item = parse_item();
             block->insert(item);
         }
-        static_symbol_table.pop_scope();
+        // static_symbol_table.pop_scope();
         return block;
     }
 
@@ -118,7 +124,12 @@ class parser {
     statement_node *parse_statement() {
         if (current_token_type() == token_type::left_brace) {
             // parse_block
-            return nullptr;
+            match(token_type::left_brace);
+            static_symbol_table.push_scope();
+            statement_node *items = parse_items();
+            static_symbol_table.pop_scope();
+            match(token_type::right_brace);
+            return items;
         } else if (is_iter_keyword(current_token_type())) {
             // parse_iter_statement
             return nullptr;
@@ -156,18 +167,27 @@ class parser {
     expression_node *parse_assign_expr() {
         if (current_token_type() == token_type::identifier && next_token(1).type == token_type::assign) {
             std::string var_name{current_token().content};
-            auto var = program_scope.current_scope().find(var_name);
+            // auto var = program_scope.current_scope().find(var_name);
+            auto result = static_symbol_table.find(var_name);
+            if (!result.has_value()) {
+                throw std::runtime_error(
+                    std::format("line {} column {}: {} is not defined",
+                        current_token().line, current_token().column, var_name)
+                );
+            }
+            auto [n, t] = result.value();
             match(token_type::identifier);
             match(token_type::assign);
             expression_node *rhs = parse_assign_expr();
             expression_node *var_node = nullptr;
-            if (var == nullptr) {
-                std::println("null");
-                var_node = new variable_node(var_name, variable_type::error);
-            } else {
-                std::println("type: {}", variable_type_name(var->type()));
-                var_node = new variable_node(var_name, var->type());
-            }
+            // if (var == nullptr) {
+            //     std::println("null");
+            //     var_node = new variable_node(var_name, variable_type::error);
+            // } else {
+            //     std::println("type: {}", variable_type_name(var->type()));
+            //     var_node = new variable_node(var_name, var->type());
+            // }
+            var_node = new variable_node(n, t);
             expression_node *assign = new assign_node(var_node, rhs);
             std::println("xxxxx");
             return assign;
