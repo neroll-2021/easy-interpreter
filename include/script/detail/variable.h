@@ -32,8 +32,8 @@ const char *variable_type_name(variable_type type) {
 }
 
 variable_type variable_type_cast(variable_type lhs, variable_type rhs) {
-    assert(static_cast<std::size_t>(lhs) < 3);
-    assert(static_cast<std::size_t>(rhs) < 3);
+    assert(static_cast<std::size_t>(lhs) < 4);
+    assert(static_cast<std::size_t>(rhs) < 4);
     static constexpr std::array<std::array<int, 4>, 4> table{{{0, 1, -1, -1}, {1, 1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}};
     std::size_t lhs_index = static_cast<std::size_t>(lhs);
     std::size_t rhs_index = static_cast<std::size_t>(rhs);

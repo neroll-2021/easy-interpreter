@@ -21,7 +21,7 @@ namespace detail {
 
 enum class ast_node_type {
     func_decl, node_for, node_if, node_while, integer, floating, boolean, add, binary, unary,
-    declaration, block, var_node, expr_statement, empty, jump
+    declaration, block, var_node, expr_statement, empty, jump, func_call
 };
 
 class ast_node {
@@ -75,6 +75,8 @@ class statement_node : public ast_node {
 
 // 
 variable_type binary_expression_type(variable_type lhs_type, token_type op, variable_type rhs_type) {
+    assert(lhs_type != variable_type::error);
+    assert(rhs_type != variable_type::error);
     switch (op) {
         case token_type::plus:
         case token_type::minus:
@@ -106,7 +108,11 @@ class binary_node : public expression_node {
         variable_type left_type = left()->value_type();
         variable_type right_type = right()->value_type();
 
+        assert(left_type != variable_type::error);
+        assert(right_type != variable_type::error);
         auto type = binary_expression_type(left_type, op, right_type);
+        assert(type != variable_type::error);
+
         set_value_type(type);
     }
 
@@ -121,9 +127,19 @@ class binary_node : public expression_node {
 
     template <typename Op>
     value_t *evaluate_result() const {
+        if constexpr (std::is_same_v<Op, plus>) {
+            std::println("evaluate_result");
+        }
         assert(value_type() != variable_type::error);
+        
+        assert(left() != nullptr);
+        assert(right() != nullptr);
+
+        // @bug 
         value_t *lhs_value = left()->evaluate();
         value_t *rhs_value = right()->evaluate();
+
+        std::println("value type: {}", variable_type_name(value_type()));
 
         if (value_type() == variable_type::integer) {
             auto l = dynamic_cast<int_value *>(lhs_value);
@@ -164,6 +180,7 @@ value_t *binary_node::evaluate_result<modulus>() const {
 }
 
 value_t *binary_node::select_operator(token_type op) const {
+    std::println("select_operator");
     switch (op) {
         case token_type::plus:
             return evaluate_result<plus>();
@@ -205,6 +222,8 @@ class add_node : public binary_node {
                     variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
             );
         }
+
+        std::println("add evaluate");
 
         return select_operator(token_type::plus);
     }
@@ -546,6 +565,9 @@ class variable_node : public expression_node {
             );
         }
         auto [n, t] = result.value();
+
+        assert(t != variable_type::error);
+
         if (t == variable_type::integer) {
             set_value_type(variable_type::integer);
         }
@@ -568,6 +590,9 @@ class variable_node : public expression_node {
             );
         }
         auto var_ = program_scope.current_scope().find(var_name);
+
+        assert(var_ != nullptr);
+
         if (var_->type() == variable_type::integer) {
             return new int_value(std::dynamic_pointer_cast<variable_int>(var_)->value());
         }
@@ -699,6 +724,9 @@ class negative_node : public unary_node {
  public:
     negative_node(expression_node *value)
         : unary_node(value) {
+
+        assert(value->value_type() != variable_type::error);
+
         set_value_type(value->value_type());
     }
 
@@ -795,6 +823,9 @@ class declaration_node : public statement_node {
  public:
     declaration_node(variable_type type, std::string_view name, expression_node *value)
         : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
+        assert(type != variable_type::error);
+        std::println("declaration");
+        // assert(value->value_type() != variable_type::error);
         if (value != nullptr && value->value_type() == variable_type::boolean && type == variable_type::boolean) {
             
         }
@@ -833,17 +864,36 @@ class declaration_node : public statement_node {
             // init_value_.reset(value);
             assert(init_value_ != nullptr);
         }
+    }
 
-        
+    variable_type type() const {
+        return type_;
+    }
+
+    void set_init_value(expression_node *expr) {
+        assert(type_ != variable_type::error);
+        assert(expr->value_type() != variable_type::error);
+        assert(variable_type_cast(type_, expr->value_type()) != variable_type::error);
+
+        init_value_.reset(expr);
+        type_ = expr->value_type();
     }
 
     std::pair<execute_state, value_t *> execute() override {
         // program_scope.current_scope().insert()
+        std::println("declaration execute");
+        std::println("type: {}", variable_type_name(type_));
+        std::println("init type: {}", variable_type_name(init_value_->value_type()));
         switch (type_) {
             case variable_type::integer: {
-                auto p = std::dynamic_pointer_cast<int_node>(init_value_);
+                // auto p = std::dynamic_pointer_cast<int_node>(init_value_);
+                auto p = init_value_;
+                // assert(p != nullptr);
+                // assert(init_value_->node_type() == ast_node_type::func_call);
                 value_t *r = p->evaluate();
+                assert(r != nullptr);
                 auto v = dynamic_cast<int_value *>(r);
+                assert(v != nullptr);
                 program_scope.current_scope().insert(new variable_int(variable_name_, v->value()));
             }
             break;
@@ -864,7 +914,20 @@ class declaration_node : public statement_node {
             default:
                 throw std::runtime_error("invalid variable type (unreachable code)");
         }
+        std::println("declaration end");
         return {execute_state::normal, nullptr};
+    }
+
+    variable_type value_type() const {
+        return type_;
+    }
+
+    const std::string &name() const {
+        return variable_name_;
+    }
+
+    std::shared_ptr<expression_node> init_value() const {
+        return init_value_;
     }
 
  private:
@@ -889,7 +952,13 @@ class block_node : public statement_node {
     }
 
     std::pair<execute_state, value_t *> execute() override {
+        std::println("block node execute");
+        std::println("size: {}", statements_.size());
+        // assert(statements_.size() == 1);
         for (auto &statement : statements_) {
+            std::println("loop");
+            std::println("not type {}", static_cast<int>(statement->node_type()));
+            // assert(statement->node_type() == ast_node_type::jump);
             std::pair<execute_state, value_t *> result = statement->execute();
             auto [state, value] = result;
             if (state != execute_state::normal) {
@@ -988,13 +1057,31 @@ class func_decl_node : public statement_node {
         // } else {
         //     throw std::runtime_error("break must in a loop");
         // }
-        func_decls.add(name_, body_.get());
+        
+        func_decls.add(name_, this);
+        std::println("func_decl execute");
         return {execute_state::normal, nullptr};
         
     }
 
     void add_param(declaration_node *dec) {
         param_.emplace_back(dec);
+    }
+
+    variable_type return_type() const {
+        return return_type_;
+    }
+
+    const std::vector<std::shared_ptr<declaration_node>> &params() const {
+        return param_;
+    }
+
+    const std::string &name() const {
+        return name_;
+    }
+
+    std::shared_ptr<statement_node> body() {
+        return body_;
     }
 
  private:
@@ -1030,6 +1117,8 @@ class return_node : public statement_node {
     std::pair<execute_state, value_t *> execute() override {
         if (expr_ == nullptr)
             return {execute_state::returned, nullptr};
+        std::println("return execute");
+        assert(expr_->node_type() == ast_node_type::binary);
         return {execute_state::returned, expr_->evaluate()};
     }
 
@@ -1039,9 +1128,56 @@ class return_node : public statement_node {
 
 class func_call_node : public expression_node {
  public:
+    func_call_node(std::string_view name, std::vector<expression_node *> args)
+        : expression_node(ast_node_type::func_call), name_(name) {
+        for (auto arg : args) {
+            args_.emplace_back(arg);
+        }
+    }
     
     value_t *evaluate() const override {
+        auto func = func_decls.find(name_);
+        assert(func != nullptr);
+        variable_type type = func->return_type();
+        // return func->execute().second;
+        assert(func->body() != nullptr);
+        std::println("func_call evaluate");
+
+        for (auto &p : func->params()) {
+            // program_scope.current_scope().insert();
+            if (p->value_type() == variable_type::integer) {
+                auto init = p->init_value();
+                value_t *v = init->evaluate();
+                auto i = dynamic_cast<int_value *>(v);
+                program_scope.current_scope().insert(new variable_int(p->name(), i->value()));
+            } else if (p->value_type() == variable_type::floating) {
+                auto init = p->init_value();
+                value_t *v = init->evaluate();
+                auto i = dynamic_cast<float_value *>(v);
+                program_scope.current_scope().insert(new variable_float(p->name(), i->value()));
+            } else if (p->value_type() == variable_type::boolean) {
+                auto init = p->init_value();
+                value_t *v = init->evaluate();
+                auto i = dynamic_cast<boolean_value *>(v);
+                program_scope.current_scope().insert(new variable_boolean(p->name(), i->value()));
+            } else {
+                throw std::runtime_error("invalid function argument");
+            }
+        }
         
+        assert(func->body()->node_type() == ast_node_type::block);
+        auto ttt = std::dynamic_pointer_cast<block_node>(func->body());
+        assert(ttt != nullptr);
+        assert(ttt->statements()[0]->node_type() == ast_node_type::jump);
+
+        auto [state, value] = func->body()->execute();
+        std::println("func_call evaluate end");
+        return value;
+    }
+
+    variable_type value_type() const override {
+        auto func = static_func_decls.find(name_);
+        return func->return_type();
     }
 
  private:

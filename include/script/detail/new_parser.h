@@ -11,6 +11,7 @@
 #include "script/detail/ring_buffer.h"
 #include "script/detail/ast.h"
 #include "script/detail/static_symbols.h"
+#include "script/detail/function.h"
 
 namespace neroll {
 
@@ -143,13 +144,19 @@ class parser {
         }
 
         statement_node *body = parse_block();
+        assert(body != nullptr);
+        assert(body->node_type() == ast_node_type::block);
+
+        auto ttt = dynamic_cast<block_node *>(body);
+        std::println("body size: {}", ttt->statements().size());
+        assert(ttt->statements().size() == 1);
 
         func_decl_node *node = new func_decl_node(return_type, name, body);
 
         for (const auto p : params) {
             node->add_param(p);
         }
-        
+        static_func_decls.add(name, node);
         return node;
     }
 
@@ -175,6 +182,7 @@ class parser {
 
     declaration_node *parse_param() {
         variable_type type;
+        
         if (current_token_type() == token_type::keyword_int) {
             match(token_type::keyword_int);
             type = variable_type::integer;
@@ -187,6 +195,7 @@ class parser {
         }
         std::string name{current_token().content};
         match(token_type::identifier);
+        std::println("parse param");
         declaration_node *node = new declaration_node(type, name, nullptr);
         return node;
     }
@@ -475,7 +484,36 @@ class parser {
                 match(token_type::identifier);
 
                 if (current_token_type() == token_type::left_parenthese) {
-                    throw std::runtime_error("function call is not supported yet");
+                    // parse_func_call
+                    match(token_type::left_parenthese);
+                    std::vector<expression_node *> args = parse_arg_list();
+                    match(token_type::right_parenthese);
+
+                    // func_decl_node *func = func_decls.find(var_name);
+                    func_decl_node *func = static_func_decls.find(var_name);
+                    if (func == nullptr) {
+                        throw std::runtime_error(
+                            std::format("line {} column {}: function {} is not defined",
+                                line, col, var_name)
+                        );
+                    }
+
+                    if (!arguments_match_declaration(func, args)) {
+                        throw std::runtime_error(
+                            std::format("line {} column {}: (function {}) no match arguments",
+                                line, col, var_name)
+                        );
+                    }
+
+                    auto &params = func->params();
+
+                    for (std::size_t i = 0; i < params.size(); i++) {
+                        params[i]->set_init_value(args[i]);
+                    }
+                    std::println("func call end");
+                    return new func_call_node(var_name, args);
+
+                    // throw std::runtime_error("function call is not supported yet");
                 } else {
                     // if (is_variable_declared(var_name)) {
                         auto var = find_variable(var_name);
@@ -519,6 +557,35 @@ class parser {
             default:
                 throw std::runtime_error("invalid operand");
         }
+    }
+
+    bool arguments_match_declaration(func_decl_node *func, const std::vector<expression_node *> &args) {
+        if (func->params().size() != args.size())
+            return false;
+        const auto &params = func->params();
+        for (std::size_t i = 0; i < args.size(); i++) {
+            std::println("qqqqqqqqqq");
+            assert(params[i]->value_type() != variable_type::error);
+            assert(args[i]->value_type() != variable_type::error);
+            if (variable_type_cast(params[i]->value_type(), args[i]->value_type()) == variable_type::error) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    std::vector<expression_node *> parse_arg_list() {
+        std::vector<expression_node *> result;
+        int index = 0;
+        while (current_token_type() != token_type::right_parenthese && current_token_type() != token_type::end_of_input) {
+            if (index != 0) {
+                match(token_type::comma);
+            }
+            expression_node *expr = parse_expr();
+            result.push_back(expr);
+            index++;
+        }
+        return result;
     }
 
     bool is_function_call() const {
@@ -565,8 +632,8 @@ class parser {
     }
 
     void get_token() {
+        std::println("{}", current_token());
         auto t = lexer_.next_token();
-        std::println("{}", t);
         buffer_.add(t);
     }
 
