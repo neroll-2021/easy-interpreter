@@ -36,8 +36,17 @@ class parser {
     template <typename... Args>
     [[noreturn]]
     void throw_syntax_error(const std::format_string<Args...> format_string, Args&&... args) {
-        format_throw<syntax_error>("[syntax error] line {} column {}: {}",
-            current_token().line, current_token().column,
+        format_throw<syntax_error>("[syntax error] {}",
+            // current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_syntax_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
+        throw_syntax_error(
+            "line {}, column {}: {}", current_token().line, current_token().column,
             std::format(format_string, std::forward<Args>(args)...)
         );
     }
@@ -45,8 +54,17 @@ class parser {
     template <typename... Args>
     [[noreturn]]
     void throw_execute_error(const std::format_string<Args...> format_string, Args&&... args) {
-        format_throw<execute_error>("[execute error] line {} column {}: {}",
-            current_token().line, current_token().column,
+        format_throw<execute_error>("[execute error] {}",
+            // current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_execute_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
+        throw_execute_error(
+            "line {}, column {}: {}", current_token().line, current_token().column,
             std::format(format_string, std::forward<Args>(args)...)
         );
     }
@@ -54,8 +72,35 @@ class parser {
     template <typename... Args>
     [[noreturn]]
     void throw_symbol_error(const std::format_string<Args...> format_string, Args&&... args) {
-        format_throw<symbol_error>("[symbol error] line {} column {}: {}",
-            current_token().line, current_token().column,
+        // format_throw<symbol_error>("[symbol error] line {} column {}: {}",
+        format_throw<symbol_error>("[symbol error] {}",
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_symbol_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
+        throw_symbol_error(
+            "line {}, column {}: {}", current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_type_error(const std::format_string<Args...> format_string, Args&&... args) {
+        format_throw<type_error>("[type error] {}",
+            // current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_type_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
+        throw_type_error(
+            "line {}, column {}: {}", current_token().line, current_token().column,
             std::format(format_string, std::forward<Args>(args)...)
         );
     }
@@ -125,9 +170,8 @@ class parser {
                 match(token_type::semicolon);
                 return new declaration_node(var_type, var_name, nullptr);
             } else {
-                throw std::runtime_error(
-                    std::format("line {} column {}: expect a ;",
-                        current_token().line, current_token().column)
+                throw_syntax_error_with_location(
+                    "xpect a ';'"
                 );
             }
         } else if (current_token_type() == token_type::keyword_function) {
@@ -135,9 +179,8 @@ class parser {
             return parse_func_decl();
             // throw std::runtime_error("function declaration is not supported yet");
         } else {
-            throw std::runtime_error(
-                std::format("line {} column {}: invalid declaration",
-                    current_token().line, current_token().column)
+            throw_syntax_error_with_location(
+                "invalid declaration"
             );
         }
     }
@@ -154,9 +197,8 @@ class parser {
         match(token_type::colon);
         
         if (!is_basic_type(current_token_type())) {
-            throw std::runtime_error(
-                std::format("line {} column {}: function must return a type of int, float or boolean",
-                    current_token().line, current_token().column)
+            throw_type_error_with_location(
+                "function must return a type of int, float or boolean"
             );
         }
 
@@ -198,10 +240,7 @@ class parser {
                 match(token_type::comma);
             }
             if (!is_basic_type(current_token_type())) {
-                throw std::runtime_error(
-                    std::format("line {} column {}: parameter type must be a basic type",
-                        current_token().line, current_token().column)
-                );
+                throw_type_error_with_location("parameter type must be a basic type");
             }
             declaration_node *node = parse_param();
             result.push_back(node);
@@ -522,16 +561,15 @@ class parser {
                     // func_decl_node *func = func_decls.find(var_name);
                     func_decl_node *func = static_func_decls.find(var_name);
                     if (func == nullptr) {
-                        throw std::runtime_error(
-                            std::format("line {} column {}: function {} is not defined",
-                                line, col, var_name)
+                        throw_symbol_error(
+                            "line {} column {}: function {} is not defined", line, col, var_name
                         );
                     }
 
                     if (!arguments_match_declaration(func, args)) {
-                        throw std::runtime_error(
-                            std::format("line {} column {}: (function {}) no match arguments",
-                                line, col, var_name)
+                        throw_type_error(
+                            "line {} column {}: (function {}) no match arguments",
+                            line, col, var_name
                         );
                     }
 
@@ -548,8 +586,8 @@ class parser {
                     // if (is_variable_declared(var_name)) {
                         auto var = find_variable(var_name);
                         if (!var.has_value()) {
-                            throw std::runtime_error(
-                                std::format("{} is not defined", var_name)
+                            throw_symbol_error(
+                                "line {} column {}: {} is not defined", line, col, var_name
                             );
                         }
                         auto [n, t] = var.value();
@@ -570,9 +608,8 @@ class parser {
                                 return new variable_node(n, t);
                             }
                             default:
-                                throw std::runtime_error(
-                                    std::format("invalid variable type {} in expression",
-                                        variable_type_name(t))
+                                throw_type_error_with_location(
+                                    "invalid variable type {} in expression", t
                                 );
                         }
                     // } else {
@@ -679,12 +716,12 @@ class parser {
         return buffer_.get_next(k);
     }
 
-    void match(token_type expected_type) {
-        if (current_token_type() == expected_type) {
+    void match(token_type expect) {
+        if (current_token_type() == expect) {
             get_token();
         } else {
             throw_syntax_error(
-                "expect '{}', found '{}'", expected_type, current_token_type()
+                "expect '{}', found '{}'", expect, current_token_type()
             );
         }
     }
