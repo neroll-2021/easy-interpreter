@@ -48,6 +48,18 @@ class symbol_error : public std::exception {
     std::string message;
 };
 
+class type_error : public std::exception {
+ public:
+    type_error(std::string msg)
+        : message(std::move(msg)) {}
+
+    const char *what() const noexcept override {
+        return message.c_str();
+    }
+ private:
+    std::string message;
+};
+
 template <typename T, typename... Args>
 [[noreturn]]
 void format_throw(const std::format_string<Args...> format_string, Args&&... args) {
