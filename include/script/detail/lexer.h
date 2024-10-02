@@ -642,6 +642,20 @@ class lexer {
 }   // namespace neroll
 
 template <>
+struct std::formatter<neroll::script::detail::token_type> {
+    constexpr auto parse(std::format_parse_context &context) {
+        if (context.begin() != context.end())
+            throw std::format_error("invalid format specifier");
+        return context.begin();
+    }
+
+    auto format(neroll::script::detail::token_type type, std::format_context &context) const {
+        using neroll::script::detail::token_type_name;
+        return std::format_to(context.out(), "{}", token_type_name(type));
+    }
+};
+
+template <>
 struct std::formatter<neroll::script::detail::token> {
     constexpr auto parse(std::format_parse_context &context) {
         if (context.begin() != context.end())
