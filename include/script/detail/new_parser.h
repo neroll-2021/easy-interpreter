@@ -53,7 +53,7 @@ class parser {
 
     template <typename... Args>
     [[noreturn]]
-    void raise_symbol_error(const std::format_string<Args...> format_string, Args&&... args) {
+    void throw_symbol_error(const std::format_string<Args...> format_string, Args&&... args) {
         format_throw<symbol_error>("[symbol error] line {} column {}: {}",
             current_token().line, current_token().column,
             std::format(format_string, std::forward<Args>(args)...)
@@ -680,14 +680,11 @@ class parser {
     }
 
     void match(token_type expected_type) {
-        if (current_token().type == expected_type) {
+        if (current_token_type() == expected_type) {
             get_token();
         } else {
-            throw std::runtime_error(
-                std::format("line {}, column {}: expect {}, found {}",
-                    current_token().line, current_token().column,
-                    token_type_name(expected_type), token_type_name(current_token().type)
-                )
+            throw_syntax_error(
+                "expect '{}', found '{}'", expected_type, current_token_type()
             );
         }
     }
