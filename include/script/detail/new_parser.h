@@ -12,12 +12,15 @@
 #include "script/detail/ast.h"
 #include "script/detail/static_symbols.h"
 #include "script/detail/function.h"
+#include "script/detail/exception.h"
 
 namespace neroll {
 
 namespace script {
 
 namespace detail {
+
+
 
 class parser {
  public:
@@ -29,6 +32,33 @@ class parser {
     }
 
 //  private:
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_syntax_error(const std::format_string<Args...> format_string, Args&&... args) {
+        format_throw<syntax_error>("[syntax error] line {} column {}: {}",
+            current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void throw_execute_error(const std::format_string<Args...> format_string, Args&&... args) {
+        format_throw<execute_error>("[execute error] line {} column {}: {}",
+            current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
+
+    template <typename... Args>
+    [[noreturn]]
+    void raise_symbol_error(const std::format_string<Args...> format_string, Args&&... args) {
+        format_throw<symbol_error>("[symbol error] line {} column {}: {}",
+            current_token().line, current_token().column,
+            std::format(format_string, std::forward<Args>(args)...)
+        );
+    }
 
     statement_node *parse_program() {
         static_symbol_table.push_scope();
