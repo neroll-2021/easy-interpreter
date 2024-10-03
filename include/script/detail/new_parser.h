@@ -35,27 +35,9 @@ class parser {
 
     template <typename... Args>
     [[noreturn]]
-    void throw_syntax_error(const std::format_string<Args...> format_string, Args&&... args) {
-        format_throw<syntax_error>("[syntax error] {}",
-            // current_token().line, current_token().column,
-            std::format(format_string, std::forward<Args>(args)...)
-        );
-    }
-
-    template <typename... Args>
-    [[noreturn]]
     void throw_syntax_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
         throw_syntax_error(
             "line {}, column {}: {}", current_token().line, current_token().column,
-            std::format(format_string, std::forward<Args>(args)...)
-        );
-    }
-
-    template <typename... Args>
-    [[noreturn]]
-    void throw_execute_error(const std::format_string<Args...> format_string, Args&&... args) {
-        format_throw<execute_error>("[execute error] {}",
-            // current_token().line, current_token().column,
             std::format(format_string, std::forward<Args>(args)...)
         );
     }
@@ -71,27 +53,9 @@ class parser {
 
     template <typename... Args>
     [[noreturn]]
-    void throw_symbol_error(const std::format_string<Args...> format_string, Args&&... args) {
-        // format_throw<symbol_error>("[symbol error] line {} column {}: {}",
-        format_throw<symbol_error>("[symbol error] {}",
-            std::format(format_string, std::forward<Args>(args)...)
-        );
-    }
-
-    template <typename... Args>
-    [[noreturn]]
     void throw_symbol_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
         throw_symbol_error(
             "line {}, column {}: {}", current_token().line, current_token().column,
-            std::format(format_string, std::forward<Args>(args)...)
-        );
-    }
-
-    template <typename... Args>
-    [[noreturn]]
-    void throw_type_error(const std::format_string<Args...> format_string, Args&&... args) {
-        format_throw<type_error>("[type error] {}",
-            // current_token().line, current_token().column,
             std::format(format_string, std::forward<Args>(args)...)
         );
     }

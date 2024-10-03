@@ -68,10 +68,42 @@ void format_throw(const std::format_string<Args...> format_string, Args&&... arg
     );
 }
 
+template <typename... Args>
+[[noreturn]]
+void throw_syntax_error(const std::format_string<Args...> format_string, Args&&... args) {
+    format_throw<syntax_error>("[syntax error] {}",
+        std::format(format_string, std::forward<Args>(args)...)
+    );
 }
+
+template <typename... Args>
+[[noreturn]]
+void throw_execute_error(const std::format_string<Args...> format_string, Args&&... args) {
+    format_throw<execute_error>("[execute error] {}",
+        std::format(format_string, std::forward<Args>(args)...)
+    );
+}
+
+template <typename... Args>
+[[noreturn]]
+void throw_symbol_error(const std::format_string<Args...> format_string, Args&&... args) {
+    format_throw<symbol_error>("[symbol error] {}",
+        std::format(format_string, std::forward<Args>(args)...)
+    );
+}
+
+template <typename... Args>
+[[noreturn]]
+void throw_type_error(const std::format_string<Args...> format_string, Args&&... args) {
+    format_throw<type_error>("[type error] {}",
+        std::format(format_string, std::forward<Args>(args)...)
+    );
+}
+
+}   // namespace detail
 
 }   // namespace script 
 
-}   // namepace neroll
+}   // namespace neroll
 
 #endif
