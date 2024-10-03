@@ -1,1 +1,1 @@
-int a = 10 / true;
+10.0 > true

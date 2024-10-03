@@ -274,37 +274,37 @@ class add_node final : public binary_arithmetic_node {
     }
 };
 
-class minus_node : public binary_arithmetic_node {
+class minus_node final : public binary_arithmetic_node {
  public:
     minus_node(expression_node *lhs, expression_node *rhs)
         : binary_arithmetic_node(lhs, token_type::minus, rhs) {}
 
-    virtual std::shared_ptr<value_t> evaluate() const override {
+    std::shared_ptr<value_t> evaluate() const override {
         return select_operator(token_type::minus);
     }
 };
 
-class multiply_node : public binary_arithmetic_node {
+class multiply_node final : public binary_arithmetic_node {
  public:
     multiply_node(expression_node *lhs, expression_node *rhs)
         : binary_arithmetic_node(lhs, token_type::asterisk, rhs) {}
 
-    virtual std::shared_ptr<value_t> evaluate() const override {
+    std::shared_ptr<value_t> evaluate() const override {
         return select_operator(token_type::asterisk);
     }
 };
 
-class divide_node : public binary_arithmetic_node {
+class divide_node final : public binary_arithmetic_node {
  public:
     divide_node(expression_node *lhs, expression_node *rhs)
         : binary_arithmetic_node(lhs, token_type::slash, rhs) {}
 
-    virtual std::shared_ptr<value_t> evaluate() const override {
+    std::shared_ptr<value_t> evaluate() const override {
         return select_operator(token_type::slash);
     }
 };
 
-class modulus_node : public binary_node {
+class modulus_node final : public binary_node {
  public:
     modulus_node(expression_node *lhs, expression_node *rhs)
         : binary_node(lhs, token_type::mod, rhs) {
@@ -318,42 +318,57 @@ class modulus_node : public binary_node {
         set_value_type(variable_type::integer);
     }
 
-    virtual std::shared_ptr<value_t> evaluate() const override {
+    std::shared_ptr<value_t> evaluate() const override {
         return select_operator(token_type::mod);
     }
 };
 
-bool can_compare(variable_type lhs, token_type op, variable_type rhs) {
-    assert(is_relation_oeprator(op));
-    if (op == token_type::less || op == token_type::greater) {
-        if (lhs == variable_type::boolean || rhs == variable_type::boolean) {
-            return false;
-        }
-        if (lhs == variable_type::function || rhs == variable_type::function) {
-            return false;
-        }
-        return true;
-    } else {
-        if (lhs == variable_type::function || rhs == variable_type::function) {
-            return false;
-        }
-        return true;
-    }
+bool can_compare(variable_type lhs, variable_type rhs) {
+    constexpr static std::array<std::array<int, 4>, 4> table{{{1, 1, 0, 0}, {1, 1, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}};
+    auto lhs_index = static_cast<std::size_t>(lhs);
+    auto rhs_index = static_cast<std::size_t>(rhs);
+    return static_cast<bool>(table[lhs_index][rhs_index]);
 }
 
-class less_node : public binary_node {
+bool can_equal(variable_type lhs, variable_type rhs) {
+    constexpr static std::array<std::array<int, 4>, 4> table{{{1, 1, 0, 0}, {1, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 0}}};
+    auto lhs_index = static_cast<std::size_t>(lhs);
+    auto rhs_index = static_cast<std::size_t>(rhs);
+    return static_cast<bool>(table[lhs_index][rhs_index]);
+}
+
+class relation_node : public binary_node {
+ public:
+    relation_node(expression_node *lhs, token_type op, expression_node *rhs)
+        : binary_node(lhs, op, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+
+        if (is_equality_operator(op)) {
+            if (!can_equal(lhs_type, rhs_type))
+                throw_type_error(
+                    "invalid operator {} between {} and {}", op, lhs_type, rhs_type
+                );
+        } else if (is_relation_oeprator(op)) {
+            if (!can_compare(lhs_type, rhs_type))
+                throw_type_error(
+                    "invaild operator {} between {} and {}", op, lhs_type, rhs_type
+                );
+        }
+
+        set_value_type(variable_type::boolean);
+    }
+};
+
+class less_node : public relation_node {
  public:
     less_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::less, rhs) {}
+        : relation_node(lhs, token_type::less, rhs) {}
  
     std::shared_ptr<value_t> evaluate() const override {
         std::shared_ptr<value_t> left_value = left()->evaluate();
         std::shared_ptr<value_t> right_value = right()->evaluate();
 
-        if (!can_compare(left()->value_type(), token_type::less, right()->value_type())) {
-            throw_type_error("cannot compare {} and {}", left()->value_type(), right()->value_type());
-        }
-        
         if (left_value->type() == variable_type::integer) {
             auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
             if (right_value->type() == variable_type::integer) {
@@ -380,20 +395,14 @@ class less_node : public binary_node {
     }
 };
 
-class greater_node : public binary_node {
+class greater_node : public relation_node {
  public:
     greater_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::greater, rhs) {}
+        : relation_node(lhs, token_type::greater, rhs) {}
 
     std::shared_ptr<value_t> evaluate() const override {
         std::shared_ptr<value_t> left_value = left()->evaluate();
         std::shared_ptr<value_t> right_value = right()->evaluate();
-
-        if (!can_compare(left()->value_type(), token_type::greater, right()->value_type())) {
-            throw_type_error(
-                "cannot compare {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
         
         if (left_value->type() == variable_type::integer) {
             auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
@@ -421,20 +430,14 @@ class greater_node : public binary_node {
     }
 };
 
-class equal_node : public binary_node {
+class equal_node : public relation_node {
  public:
     equal_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::equal, rhs) {}
+        : relation_node(lhs, token_type::equal, rhs) {}
 
     std::shared_ptr<value_t> evaluate() const override {
         std::shared_ptr<value_t> left_value = left()->evaluate();
         std::shared_ptr<value_t> right_value = right()->evaluate();
-
-        if (!can_compare(left()->value_type(), token_type::equal, right()->value_type())) {
-            throw_type_error(
-                "cannot compare {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
         
         if (left_value->type() == variable_type::integer) {
             auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
@@ -462,20 +465,14 @@ class equal_node : public binary_node {
     }
 };
 
-class not_equal_node : public binary_node {
+class not_equal_node : public relation_node {
  public:
     not_equal_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::not_equal, rhs) {}
+        : relation_node(lhs, token_type::not_equal, rhs) {}
 
     std::shared_ptr<value_t> evaluate() const override {
         std::shared_ptr<value_t> left_value = left()->evaluate();
         std::shared_ptr<value_t> right_value = right()->evaluate();
-
-        if (!can_compare(left()->value_type(), token_type::not_equal, right()->value_type())) {
-            throw_type_error(
-                "cannot compare {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
         
         if (left_value->type() == variable_type::integer) {
             auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
