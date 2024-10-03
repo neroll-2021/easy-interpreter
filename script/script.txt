@@ -1,7 +1,1 @@
-function add(int x, int y) : int {
-    return x + y;
-}
-
-int c = add(1, 2);
-
-c = c + x;
+float a = 10 + true;

@@ -74,8 +74,16 @@ class statement_node : public ast_node {
     virtual std::pair<execute_state, std::shared_ptr<value_t>> execute() = 0;
 };
 
+bool is_both_boolean(variable_type lhs, variable_type rhs) {
+    return lhs == variable_type::boolean && rhs == variable_type::boolean;
+}
+
 bool is_both_integer(variable_type lhs, variable_type rhs) {
     return lhs == variable_type::integer && rhs == variable_type::integer;
+}
+
+bool is_both_integer(const std::shared_ptr<expression_node> &lhs, const std::shared_ptr<expression_node> &rhs) {
+    return is_both_integer(lhs->value_type(), rhs->value_type());
 }
 
 bool is_arithmetic_operator(token_type type) {
@@ -100,23 +108,55 @@ bool is_assign_operator(token_type type) {
     return type == token_type::assign;
 }
 
+bool is_equality_operator(token_type op) {
+    return op == token_type::equal || op == token_type::not_equal;
+}
+
+// TODO
+// 
 variable_type binary_expression_type(variable_type lhs_type, token_type op, variable_type rhs_type) {
     assert(lhs_type != variable_type::error);
     assert(rhs_type != variable_type::error);
     
     if (is_arithmetic_operator(op)) {
+        if (arithmetic_type_cast(lhs_type, rhs_type) == variable_type::error)
+            throw_type_error("invalid operator {} betweem {} and {}", op, lhs_type, rhs_type);
         return arithmetic_type_cast(lhs_type, rhs_type);
     } else if (is_modulus_operator(op)) {
         if (is_both_integer(lhs_type, rhs_type))
             return variable_type::integer;
-        throw_type_error("invalid operand type {} and {} in modulus", lhs_type, rhs_type);
-    } else if (is_relation_oeprator(op) || is_logical_operator(op)) {
+        throw_type_error("invalid operator % between {} and {}", lhs_type, rhs_type);
+    } else if (is_relation_oeprator(op)) {
+        if (is_both_boolean(lhs_type, rhs_type) && !is_equality_operator(op))
+            throw_type_error("invalid operator {} between {} and {}", op, lhs_type, rhs_type);
+        
         return variable_type::boolean;
+    } else if (is_logical_operator(op)) {
+        if (is_both_boolean(lhs_type, rhs_type))
+            return variable_type::boolean;
+        throw_type_error("invalid operator {} between {} and {}", lhs_type, rhs_type);
     } else if (is_assign_operator(op)) {
         return lhs_type;
     } else {
         throw_syntax_error("invalid operator '{}'", op);
     }
+}
+
+bool is_valid_binary_expr(variable_type lhs, token_type op, variable_type rhs) {
+    if (is_arithmetic_operator(op))
+        return arithmetic_type_cast(lhs, rhs) != variable_type::error;
+
+    if (is_modulus_operator(op))
+        return is_both_integer(lhs, rhs);
+    
+    if (is_logical_operator(op))
+        return is_both_boolean(lhs, rhs);
+    
+    if (is_relation_oeprator(op)) {
+        // if (!is_both_boolean(lhs, rhs))
+        return true;
+    }
+    return false;
 }
 
 class binary_node : public expression_node {
@@ -155,7 +195,7 @@ class binary_node : public expression_node {
         std::shared_ptr<value_t> lhs_value = left()->evaluate();
         std::shared_ptr<value_t> rhs_value = right()->evaluate();
 
-        if (value_type() == variable_type::integer) {
+        if (is_both_integer(left(), right())) {
             auto l = std::dynamic_pointer_cast<int_value>(lhs_value);
             auto r = std::dynamic_pointer_cast<int_value>(rhs_value);
             return std::make_shared<int_value>(Op{}(l->value(), r->value()));
@@ -482,10 +522,6 @@ class not_equal_node : public binary_node {
         }
     }
 };
-
-bool is_both_boolean(variable_type lhs, variable_type rhs) {
-    return lhs == variable_type::boolean && rhs == variable_type::boolean;
-}
 
 class logical_and_node : public binary_node {
  public:
