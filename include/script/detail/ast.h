@@ -12,6 +12,7 @@
 #include "script/detail/scope.h"        // program_scope
 #include "script/detail/static_symbols.h"
 #include "script/detail/function.h"
+#include "script/detail/exception.h"
 
 namespace neroll {
 
@@ -108,13 +109,13 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
     } else if (is_modulus_operator(op)) {
         if (is_both_integer(lhs_type, rhs_type))
             return variable_type::integer;
-        return variable_type::error;
+        throw_type_error("invalid operand type {} and {} in modulus", lhs_type, rhs_type);
     } else if (is_relation_oeprator(op) || is_logical_operator(op)) {
         return variable_type::boolean;
     } else if (is_assign_operator(op)) {
         return lhs_type;
     } else {
-        return variable_type::error;
+        throw_syntax_error("invalid operator '{}'", op);
     }
 }
 
@@ -127,7 +128,9 @@ class binary_node : public expression_node {
 
         assert(left_type != variable_type::error);
         assert(right_type != variable_type::error);
+
         auto type = binary_expression_type(left_type, op, right_type);
+        
         assert(type != variable_type::error);
 
         set_value_type(type);
@@ -500,22 +503,22 @@ class not_equal_node : public binary_node {
     }
 };
 
+bool is_both_boolean(variable_type lhs, variable_type rhs) {
+    return lhs == variable_type::boolean && rhs == variable_type::boolean;
+}
+
 class logical_and_node : public binary_node {
  public:
     logical_and_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::logical_and, rhs) {}
+        : binary_node(lhs, token_type::logical_and, rhs) {
+        variable_type lhs_type = left()->value_type();
+        variable_type rhs_type = right()->value_type();
+        if (!is_both_boolean(lhs_type, rhs_type)) {
+            throw_type_error("invalid '&&' between {} and {}", lhs_type, rhs_type);
+        }
+    }
     
     value_t *evaluate() const override {
-        // assert(left()->value_type() == variable_type::boolean);
-        // assert(right()->value_type() == variable_type::boolean);
-
-        if (left()->value_type() != variable_type::boolean ||
-            right()->value_type() != variable_type::boolean) {
-            throw std::runtime_error(
-                std::format("invalid && between {} and {}",
-                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
-            );
-        }
 
         value_t *lhs_value = left()->evaluate();
         value_t *rhs_value = right()->evaluate();
@@ -533,19 +536,15 @@ class logical_and_node : public binary_node {
 class logical_or_node : public binary_node {
  public:
     logical_or_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::logical_or, rhs) {}
+        : binary_node(lhs, token_type::logical_or, rhs) {
+        variable_type lhs_type = left()->value_type();
+        variable_type rhs_type = right()->value_type();
+        if (!is_both_boolean(lhs_type, rhs_type)) {
+            throw_type_error("invalid '||' between {} and {}", lhs_type, rhs_type);
+        }
+    }
     
     value_t *evaluate() const override {
-        // assert(left()->value_type() == variable_type::boolean);
-        // assert(right()->value_type() == variable_type::boolean);
-
-        if (left()->value_type() != variable_type::boolean ||
-            right()->value_type() != variable_type::boolean) {
-            throw std::runtime_error(
-                std::format("invalid || between {} and {}",
-                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
-            );
-        }
 
         value_t *lhs_value = left()->evaluate();
         value_t *rhs_value = right()->evaluate();

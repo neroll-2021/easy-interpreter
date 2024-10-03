@@ -1,1 +1,1 @@
-int c = 10 % 3.5;
+boolean c = true || 1;
