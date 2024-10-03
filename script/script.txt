@@ -1,1 +1,5 @@
-boolean c = true || 1;
+function add(int x, int y) : int {
+    return x + y;
+}
+
+int c = add(1, 2);

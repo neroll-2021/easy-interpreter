@@ -559,35 +559,33 @@ class logical_or_node : public binary_node {
     }
 };
 
+value_t *variable_value(const std::shared_ptr<variable> &var) {
+    switch (var->type()) {
+        case variable_type::integer:
+            return new int_value(std::dynamic_pointer_cast<variable_int>(var)->value());
+        case variable_type::floating:
+            return new float_value(std::dynamic_pointer_cast<variable_float>(var)->value());
+        case variable_type::boolean:
+            return new boolean_value(std::dynamic_pointer_cast<variable_boolean>(var)->value());
+        default:
+            return nullptr;
+    }
+}
+
 class variable_node : public expression_node {
  public:
     variable_node(std::string_view name, variable_type type)
         : expression_node(ast_node_type::var_node), var_name(name), var_type(type) {
-        // if (!program_scope.current_scope().contains(var_name)) {
-        //     throw std::runtime_error(
-        //         std::format("{} is not defined", var_name)
-        //     );
-        // }
-        // var_ = program_scope.current_scope().find(var_name);
         auto result = static_symbol_table.find(name);
         if (!result.has_value()) {
-            throw std::runtime_error(
-                std::format("{} is not defined", var_name)
-            );
+            throw_symbol_error("{} is not defined", name);
         }
         auto [n, t] = result.value();
 
         assert(t != variable_type::error);
-
-        if (t == variable_type::integer) {
-            set_value_type(variable_type::integer);
-        }
-        if (t == variable_type::floating) {
-            set_value_type(variable_type::floating);
-        }
-        if (t == variable_type::boolean) {
-            set_value_type(variable_type::boolean);
-        }
+        assert(t != variable_type::function);
+        
+        set_value_type(t);
     }
 
     const std::string &variable_name() const {
@@ -595,6 +593,7 @@ class variable_node : public expression_node {
     }
 
     value_t *evaluate() const override {
+        assert(var_type != variable_type::error);
         if (var_type == variable_type::error) {
             throw std::runtime_error(
                 std::format("{} is not declared", var_name)
@@ -604,18 +603,13 @@ class variable_node : public expression_node {
 
         assert(var_ != nullptr);
 
-        if (var_->type() == variable_type::integer) {
-            return new int_value(std::dynamic_pointer_cast<variable_int>(var_)->value());
+        value_t *p = variable_value(var_);
+        if (p == nullptr) {
+            throw_type_error(
+                "invalid variable type {}", var_->type()
+            );
         }
-        if (var_->type() == variable_type::floating) {
-            return new float_value(std::dynamic_pointer_cast<variable_float>(var_)->value());
-        }
-        if (var_->type() == variable_type::boolean) {
-            return new boolean_value(std::dynamic_pointer_cast<variable_boolean>(var_)->value());
-        }
-        throw std::runtime_error(
-            std::format("invalid assignment type {}", variable_type_name(var_->type()))
-        );
+        return p;
     }
 
  private:
@@ -623,6 +617,15 @@ class variable_node : public expression_node {
     std::string var_name;
     variable_type var_type;
 };
+
+bool can_assign(variable_type lhs, variable_type rhs) {
+    assert(lhs != variable_type::error);
+    assert(rhs != variable_type::error);
+    constexpr static std::array<std::array<int, 4>, 4> table = {{{1, 1, 0, 0}, {1, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 0}}};
+    auto lhs_index = static_cast<std::size_t>(lhs);
+    auto rhs_index = static_cast<std::size_t>(rhs);
+    return table[lhs_index][rhs_index];
+}
 
 class assign_node : public binary_node {
  public:
@@ -632,44 +635,17 @@ class assign_node : public binary_node {
         variable_type rhs_type = rhs->value_type();
 
         auto l = std::dynamic_pointer_cast<variable_node>(left());
+        assert(l != nullptr);
         var_name = l->variable_name();
 
-        if (lhs_type == variable_type::integer) {
-            if (rhs_type != variable_type::integer && rhs_type != variable_type::floating) {
-                throw std::runtime_error(
-                    std::format("cannot assign {} to {}", variable_type_name(rhs_type),
-                        variable_type_name(lhs_type))
-                );
-            }
-        } else if (lhs_type == variable_type::floating) {
-            if (rhs_type != variable_type::integer && rhs_type != variable_type::floating) {
-                throw std::runtime_error(
-                    std::format("cannot assign {} to {}", variable_type_name(rhs_type),
-                        variable_type_name(lhs_type))
-                );
-            }
-        } else if (lhs_type == variable_type::boolean) {
-            if (rhs_type != variable_type::boolean) {
-                throw std::runtime_error(
-                    std::format("cannot assign {} to {}", variable_type_name(rhs_type),
-                        variable_type_name(lhs_type))
-                );
-            }
-        } else if (lhs_type == variable_type::error) {
-
-        } else {
-            throw std::runtime_error(
-                    std::format("{} cannot be assign",
-                        variable_type_name(lhs_type))
-                );
+        if (!can_assign(lhs_type, rhs_type)) {
+            throw_type_error("cannot assign {} to {}", rhs_type, lhs_type);
         }
     }
 
     value_t *evaluate() const override {
         if (!program_scope.current_scope().contains(var_name)) {
-            throw std::runtime_error(
-                std::format("{} is not defined", var_name)
-            );
+            throw_symbol_error("{} is not defined", var_name);
         }
         auto var = program_scope.current_scope().find(var_name);
         if (left()->value_type() == variable_type::integer) {
@@ -735,8 +711,10 @@ class negative_node : public unary_node {
  public:
     negative_node(expression_node *value)
         : unary_node(value) {
-
-        assert(value->value_type() != variable_type::error);
+        variable_type type = value->value_type();
+        if (type != variable_type::integer && type != variable_type::floating) {
+            throw_type_error("invalid operand type {} for '-'", type);
+        }
 
         set_value_type(value->value_type());
     }
@@ -754,9 +732,7 @@ class negative_node : public unary_node {
             delete val;
             return result;
         } else {
-            return new error_value(
-                std::format("invalid operator - on {}", variable_type_name(value_type()))
-            );
+            throw_type_error("invalid operator '-' on {}", value_type());
         }
     }
 };
@@ -836,16 +812,21 @@ class declaration_node : public statement_node {
         : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
         assert(type != variable_type::error);
         std::println("declaration");
+
+        if (value != nullptr && !can_assign(type, value->value_type())) {
+            throw_type_error("initial value type {} cannot assign to {}", value->value_type(), type);
+        }
+
         // assert(value->value_type() != variable_type::error);
-        if (value != nullptr && value->value_type() == variable_type::boolean && type == variable_type::boolean) {
+        // if (value != nullptr && value->value_type() == variable_type::boolean && type == variable_type::boolean) {
             
-        }
-        else if (value != nullptr && arithmetic_type_cast(type, value->value_type()) == variable_type::error) {
-            throw std::runtime_error(
-                std::format("initial value type '{}' is not the same with variable type '{}",
-                    variable_type_name(value->value_type()), variable_type_name(type))
-            );
-        }
+        // }
+        // else if (value != nullptr && arithmetic_type_cast(type, value->value_type()) == variable_type::error) {
+        //     throw std::runtime_error(
+        //         std::format("initial value type '{}' is not the same with variable type '{}",
+        //             variable_type_name(value->value_type()), variable_type_name(type))
+        //     );
+        // }
         
         switch (type) {
             case variable_type::integer:
@@ -853,7 +834,7 @@ class declaration_node : public statement_node {
             case variable_type::boolean:
                 break;
             default:
-                throw std::runtime_error("invalid variable type");
+                throw_type_error("invalid variable type: {}", type);
         }
 
         static_symbol_table.insert(name, type);
@@ -891,7 +872,7 @@ class declaration_node : public statement_node {
     }
 
     std::pair<execute_state, value_t *> execute() override {
-        // program_scope.current_scope().insert()
+        // program_scope.current_scope().insert();
         std::println("declaration execute");
         std::println("type: {}", variable_type_name(type_));
         std::println("init type: {}", variable_type_name(init_value_->value_type()));
@@ -1059,16 +1040,6 @@ class func_decl_node : public statement_node {
           return_type_(type), name_(name), body_(body) {}
 
     std::pair<execute_state, value_t *> execute() override {
-        // std::pair<execute_state, value_t *> result = body_->execute();
-        // auto [state, value] = result;
-        // if (state == execute_state::returned) {
-        //     return {execute_state::normal, value};
-        // } else if (state == execute_state::continued) {
-        //     throw std::runtime_error("continue must in a loop");
-        // } else {
-        //     throw std::runtime_error("break must in a loop");
-        // }
-        
         func_decls.add(name_, this);
         std::println("func_decl execute");
         return {execute_state::normal, nullptr};
@@ -1129,7 +1100,6 @@ class return_node : public statement_node {
         if (expr_ == nullptr)
             return {execute_state::returned, nullptr};
         std::println("return execute");
-        assert(expr_->node_type() == ast_node_type::binary);
         return {execute_state::returned, expr_->evaluate()};
     }
 
