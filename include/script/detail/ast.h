@@ -73,31 +73,48 @@ class statement_node : public ast_node {
     virtual std::pair<execute_state, value_t *> execute() = 0;
 };
 
-// 
+bool is_both_integer(variable_type lhs, variable_type rhs) {
+    return lhs == variable_type::integer && rhs == variable_type::integer;
+}
+
+bool is_arithmetic_operator(token_type type) {
+    return type == token_type::plus || type == token_type::minus ||
+           type == token_type::asterisk || type == token_type::slash;
+}
+
+bool is_relation_oeprator(token_type type) {
+    return type == token_type::less || type == token_type::greater ||
+           type == token_type::equal || type == token_type::not_equal;
+}
+
+bool is_logical_operator(token_type type) {
+    return type == token_type::logical_and || type == token_type::logical_or;
+}
+
+bool is_modulus_operator(token_type type) {
+    return type == token_type::mod;
+}
+
+bool is_assign_operator(token_type type) {
+    return type == token_type::assign;
+}
+
 variable_type binary_expression_type(variable_type lhs_type, token_type op, variable_type rhs_type) {
     assert(lhs_type != variable_type::error);
     assert(rhs_type != variable_type::error);
-    switch (op) {
-        case token_type::plus:
-        case token_type::minus:
-        case token_type::asterisk:
-        case token_type::slash:
-            return variable_type_cast(lhs_type, rhs_type);
-        case token_type::mod:
-            if (lhs_type != variable_type::integer || rhs_type != variable_type::integer)
-                return variable_type::error;
+    
+    if (is_arithmetic_operator(op)) {
+        return arithmetic_type_cast(lhs_type, rhs_type);
+    } else if (is_modulus_operator(op)) {
+        if (is_both_integer(lhs_type, rhs_type))
             return variable_type::integer;
-        case token_type::equal:
-        case token_type::not_equal:
-        case token_type::less:
-        case token_type::greater:
-        case token_type::logical_and:
-        case token_type::logical_or:
-            return variable_type::boolean;
-        case token_type::assign:
-            return lhs_type;
-        default:
-            return variable_type::error;
+        return variable_type::error;
+    } else if (is_relation_oeprator(op) || is_logical_operator(op)) {
+        return variable_type::boolean;
+    } else if (is_assign_operator(op)) {
+        return lhs_type;
+    } else {
+        return variable_type::error;
     }
 }
 
@@ -296,11 +313,6 @@ class modulus_node : public binary_node {
         return select_operator(token_type::mod);
     }
 };
-
-bool is_relation_oeprator(token_type type) {
-    return type == token_type::less || type == token_type::greater ||
-           type == token_type::equal || type == token_type::not_equal;
-}
 
 bool can_compare(variable_type lhs, token_type op, variable_type rhs) {
     assert(is_relation_oeprator(op));
@@ -829,7 +841,7 @@ class declaration_node : public statement_node {
         if (value != nullptr && value->value_type() == variable_type::boolean && type == variable_type::boolean) {
             
         }
-        else if (value != nullptr && variable_type_cast(type, value->value_type()) == variable_type::error) {
+        else if (value != nullptr && arithmetic_type_cast(type, value->value_type()) == variable_type::error) {
             throw std::runtime_error(
                 std::format("initial value type '{}' is not the same with variable type '{}",
                     variable_type_name(value->value_type()), variable_type_name(type))
@@ -873,7 +885,7 @@ class declaration_node : public statement_node {
     void set_init_value(expression_node *expr) {
         assert(type_ != variable_type::error);
         assert(expr->value_type() != variable_type::error);
-        assert(variable_type_cast(type_, expr->value_type()) != variable_type::error);
+        assert(arithmetic_type_cast(type_, expr->value_type()) != variable_type::error);
 
         init_value_.reset(expr);
         type_ = expr->value_type();

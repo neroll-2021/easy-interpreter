@@ -384,13 +384,6 @@ class parser {
             match(token_type::assign);
             expression_node *rhs = parse_assign_expr();
             expression_node *var_node = nullptr;
-            // if (var == nullptr) {
-            //     std::println("null");
-            //     var_node = new variable_node(var_name, variable_type::error);
-            // } else {
-            //     std::println("type: {}", variable_type_name(var->type()));
-            //     var_node = new variable_node(var_name, var->type());
-            // }
             var_node = new variable_node(n, t);
             expression_node *assign = new assign_node(var_node, rhs);
             std::println("xxxxx");
@@ -625,7 +618,7 @@ class parser {
             std::println("qqqqqqqqqq");
             assert(params[i]->value_type() != variable_type::error);
             assert(args[i]->value_type() != variable_type::error);
-            if (variable_type_cast(params[i]->value_type(), args[i]->value_type()) == variable_type::error) {
+            if (arithmetic_type_cast(params[i]->value_type(), args[i]->value_type()) == variable_type::error) {
                 return false;
             }
         }

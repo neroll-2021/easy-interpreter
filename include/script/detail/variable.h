@@ -15,7 +15,7 @@ namespace script {
 namespace detail {
 
 enum class variable_type {
-    integer, floating, boolean, function, error = -1
+    error = -1, integer, floating, boolean, function
 };
 
 const char *variable_type_name(variable_type type) {
@@ -31,7 +31,7 @@ const char *variable_type_name(variable_type type) {
     }
 }
 
-variable_type variable_type_cast(variable_type lhs, variable_type rhs) {
+variable_type arithmetic_type_cast(variable_type lhs, variable_type rhs) {
     assert(static_cast<std::size_t>(lhs) < 4);
     assert(static_cast<std::size_t>(rhs) < 4);
     static constexpr std::array<std::array<int, 4>, 4> table{{{0, 1, -1, -1}, {1, 1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}};
