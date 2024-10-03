@@ -48,7 +48,7 @@ int main() {
 
 
 
-        std::pair<nsd::execute_state, nsd::value_t *> result = node->execute();
+        std::pair<nsd::execute_state, std::shared_ptr<nsd::value_t>> result = node->execute();
         std::println("execute complete");
         auto [state, value] = result;
 
