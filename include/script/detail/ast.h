@@ -162,19 +162,7 @@ bool is_valid_binary_expr(variable_type lhs, token_type op, variable_type rhs) {
 class binary_node : public expression_node {
  public:
     binary_node(expression_node *lhs, token_type op, expression_node *rhs)
-        : expression_node(ast_node_type::binary), lhs_(lhs), rhs_(rhs) {
-        variable_type left_type = left()->value_type();
-        variable_type right_type = right()->value_type();
-
-        assert(left_type != variable_type::error);
-        assert(right_type != variable_type::error);
-
-        auto type = binary_expression_type(left_type, op, right_type);
-        
-        assert(type != variable_type::error);
-
-        set_value_type(type);
-    }
+        : expression_node(ast_node_type::binary), lhs_(lhs), rhs_(rhs) {}
 
     std::shared_ptr<expression_node> left() const {
         return lhs_;
@@ -263,18 +251,19 @@ class unary_node : public expression_node {
     std::shared_ptr<expression_node> value_;
 };
 
-class add_node : public binary_node {
+class add_node final : public binary_node {
  public:
     add_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::plus, rhs) {}
+        : binary_node(lhs, token_type::plus, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+        variable_type type = arithmetic_type_cast(lhs_type, rhs_type);
+        if (type == variable_type::error)
+            throw_type_error("invalid operator + between {} and {}", lhs_type, rhs_type);
+        set_value_type(type);
+    }
 
-    virtual std::shared_ptr<value_t> evaluate() const override {
-        if (value_type() == variable_type::error) {
-            throw_type_error(
-                "invalid operator + between {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
-
+    std::shared_ptr<value_t> evaluate() const override {
         return select_operator(token_type::plus);
     }
 };
@@ -282,15 +271,16 @@ class add_node : public binary_node {
 class minus_node : public binary_node {
  public:
     minus_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::minus, rhs) {}
+        : binary_node(lhs, token_type::minus, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+        variable_type type = arithmetic_type_cast(lhs_type, rhs_type);
+        if (type == variable_type::error)
+            throw_type_error("invalid operator - between {} and {}", lhs_type, rhs_type);
+        set_value_type(type);
+    }
 
     virtual std::shared_ptr<value_t> evaluate() const override {
-        if (value_type() == variable_type::error) {
-            throw_type_error(
-                "invalid operator - between {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
-
         return select_operator(token_type::minus);
     }
 };
@@ -298,15 +288,16 @@ class minus_node : public binary_node {
 class multiply_node : public binary_node {
  public:
     multiply_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::asterisk, rhs) {}
+        : binary_node(lhs, token_type::asterisk, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+        variable_type type = arithmetic_type_cast(lhs_type, rhs_type);
+        if (type == variable_type::error)
+            throw_type_error("invalid operator * between {} and {}", lhs_type, rhs_type);
+        set_value_type(type);
+    }
 
     virtual std::shared_ptr<value_t> evaluate() const override {
-        if (value_type() == variable_type::error) {
-            throw_type_error(
-                "invalid operator * between {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
-
         return select_operator(token_type::asterisk);
     }
 };
@@ -314,15 +305,16 @@ class multiply_node : public binary_node {
 class divide_node : public binary_node {
  public:
     divide_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::slash, rhs) {}
+        : binary_node(lhs, token_type::slash, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+        variable_type type = arithmetic_type_cast(lhs_type, rhs_type);
+        if (type == variable_type::error)
+            throw_type_error("invalid operator / between {} and {}", lhs_type, rhs_type);
+        set_value_type(type);
+    }
 
     virtual std::shared_ptr<value_t> evaluate() const override {
-        if (value_type() == variable_type::error) {
-            throw_type_error(
-                "invalid operator / between {} and {}", left()->value_type(), right()->value_type()
-            );
-        }
-
         return select_operator(token_type::slash);
     }
 };
@@ -330,7 +322,16 @@ class divide_node : public binary_node {
 class modulus_node : public binary_node {
  public:
     modulus_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::mod, rhs) {}
+        : binary_node(lhs, token_type::mod, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+
+        if (!is_both_integer(lhs_type, rhs_type))
+            throw_type_error(
+                "invalid operator % between {} and {}", lhs_type, rhs_type
+            );
+        set_value_type(variable_type::integer);
+    }
 
     virtual std::shared_ptr<value_t> evaluate() const override {
         if (value_type() == variable_type::error) {

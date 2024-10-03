@@ -1,1 +1,1 @@
-float a = 10 + true;
+int a = 10 + true;
