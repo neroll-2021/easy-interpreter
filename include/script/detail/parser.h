@@ -9,6 +9,7 @@
 #include "script/detail/lexer.h"            // lexer
 #include "script/detail/ast.h"              // 
 #include "script/detail/ring_buffer.h"      // ring_buffer
+#include "script/detail/scope.h"            // scope
 
 namespace neroll {
 
@@ -70,6 +71,11 @@ namespace detail {
  *        | $
  * 
  * statement -> declaration    (todo)
+ *            | expr_statement
+ * 
+ * assign -> IDENTIFIER = expr_statement
+ * 
+ * expr_statement -> expr ;
  * 
  * expr -> term expr'
  * 
@@ -128,9 +134,18 @@ class parser {
     }
 
     statement_node *parse_statement() {
-        
-        return parse_declaration();
+        if (current_token().type == token_type::keyword_int ||
+            current_token().type == token_type::keyword_float ||
+            current_token().type == token_type::keyword_boolean) {
+            return parse_declaration();
+        }
+        if (current_token().type == token_type::identifier && next_token(1).type == token_type::assign) {
+
+        }
+        return nullptr;
     }
+
+    
 
     statement_node *parse_declaration() {
         declaration_node *node = nullptr;
@@ -159,8 +174,10 @@ class parser {
                 init_value = parse_initiation();
                 var_type = variable_type::boolean;
                 break;
+            case token_type::identifier:
+                throw std::runtime_error("invalid indentifier in variable declaration");
             default:
-                return nullptr;
+                // return nullptr;
                 throw std::runtime_error("invalid variable type in declaration");
         }
         node = new declaration_node(var_type, var_name, init_value);
@@ -252,7 +269,38 @@ class parser {
             match(token_type::right_parenthese);
             return n;
         } else if (current_token().type == token_type::identifier) {
-            throw std::runtime_error("variable and function are not supported yet");
+            std::string name{current_token().content};
+            auto line = current_token().line;
+            auto col = current_token().column;
+            match(token_type::identifier);
+            if (current_token().type != token_type::left_parenthese) {
+                if (program_scope.current_scope().contains(name)) {
+                    auto v = program_scope.current_scope().find(name);
+                    if (v->type() == variable_type::integer) {
+                        auto p = std::dynamic_pointer_cast<variable_int>(v);
+                        return new int_node(p->value());
+                    } else if (v->type() == variable_type::floating) {
+                        auto p = std::dynamic_pointer_cast<variable_float>(v);
+                        return new float_node(p->value());
+                    } else if (v->type() == variable_type::boolean) {
+                        auto p = std::dynamic_pointer_cast<variable_boolean>(v);
+                        return new boolean_node(p->value());
+                    } else {
+                        throw std::runtime_error(
+                            std::format("invalid variable type {} in expression",
+                                variable_type_name(v->type()))
+                        );
+                    }
+                } else {
+                    throw std::runtime_error(
+                        std::format("line {} column {}: {} is not defined",
+                            line, col, name)
+                    );
+                }
+            } else {
+                throw std::runtime_error("function call is not supported yet");
+            }
+            // throw std::runtime_error("variable and function are not supported yet");
         } else if (current_token().type == token_type::literal_true) {
             auto n = make_value_node<bool>(current_token());
             match(token_type::literal_true);

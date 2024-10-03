@@ -1,5 +1,5 @@
-function add(int x, int y) : int {
+function add(int x, int y) : function {
     return x + y;
 }
 
-int c = add(1, 2);
+int c = add(1, 2, 1);

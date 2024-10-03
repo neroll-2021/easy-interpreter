@@ -18,6 +18,7 @@ int main() {
     }
     catch (std::exception &e) {
         std::println("{}", e.what());
+        return 0;
     }
     nsd::value_t *result = node->evaluate();
     if (result->type() == nsd::variable_type::error) {
