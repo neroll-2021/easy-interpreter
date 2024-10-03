@@ -171,7 +171,7 @@ class parser {
                 return new declaration_node(var_type, var_name, nullptr);
             } else {
                 throw_syntax_error_with_location(
-                    "xpect a ';'"
+                    "expect a ';'"
                 );
             }
         } else if (current_token_type() == token_type::keyword_function) {
@@ -339,8 +339,8 @@ class parser {
             while_node *node = new while_node(expr, body);
             return node;
         } else {
-            throw std::runtime_error(
-                std::format("invalid iter keyword {}", current_token().content)
+            throw_syntax_error_with_location(
+                "invalid iteration keyword {}", current_token().content
             );
         }
     }
@@ -373,12 +373,10 @@ class parser {
     expression_node *parse_assign_expr() {
         if (current_token_type() == token_type::identifier && next_token(1).type == token_type::assign) {
             std::string var_name{current_token().content};
-            // auto var = program_scope.current_scope().find(var_name);
             auto result = static_symbol_table.find(var_name);
             if (!result.has_value()) {
-                throw std::runtime_error(
-                    std::format("line {} column {}: {} is not defined",
-                        current_token().line, current_token().column, var_name)
+                throw_symbol_error_with_location(
+                    "{} is not defined", var_name
                 );
             }
             auto [n, t] = result.value();
@@ -580,49 +578,42 @@ class parser {
                     }
                     std::println("func call end");
                     return new func_call_node(var_name, args);
-
-                    // throw std::runtime_error("function call is not supported yet");
                 } else {
-                    // if (is_variable_declared(var_name)) {
-                        auto var = find_variable(var_name);
-                        if (!var.has_value()) {
-                            throw_symbol_error(
-                                "line {} column {}: {} is not defined", line, col, var_name
+                    auto var = find_variable(var_name);
+                    if (!var.has_value()) {
+                        throw_symbol_error(
+                            "line {} column {}: {} is not defined", line, col, var_name
+                        );
+                    }
+                    auto [n, t] = var.value();
+                    switch (t) {
+                        case variable_type::integer: {
+                            // auto p = std::dynamic_pointer_cast<variable_int>(var);
+                            // return new int_node(p->value());
+                            return new variable_node(n, t);
+                        }
+                        case variable_type::floating: {
+                            // auto p = std::dynamic_pointer_cast<variable_float>(var);
+                            // return new float_node(p->value());
+                            return new variable_node(n, t);
+                        }
+                        case variable_type::boolean: {
+                            // auto p = std::dynamic_pointer_cast<variable_boolean>(var);
+                            // return new boolean_node(p->value());
+                            return new variable_node(n, t);
+                        }
+                        default:
+                            throw_type_error_with_location(
+                                "invalid variable type {} in expression", t
                             );
-                        }
-                        auto [n, t] = var.value();
-                        switch (t) {
-                            case variable_type::integer: {
-                                // auto p = std::dynamic_pointer_cast<variable_int>(var);
-                                // return new int_node(p->value());
-                                return new variable_node(n, t);
-                            }
-                            case variable_type::floating: {
-                                // auto p = std::dynamic_pointer_cast<variable_float>(var);
-                                // return new float_node(p->value());
-                                return new variable_node(n, t);
-                            }
-                            case variable_type::boolean: {
-                                // auto p = std::dynamic_pointer_cast<variable_boolean>(var);
-                                // return new boolean_node(p->value());
-                                return new variable_node(n, t);
-                            }
-                            default:
-                                throw_type_error_with_location(
-                                    "invalid variable type {} in expression", t
-                                );
-                        }
-                    // } else {
-                        // throw std::runtime_error(
-                        //     std::format("line {} column {}: {} is not defined",
-                        //         line, col, var_name)
-                        // );
-                    // }
+                    }
                 }
             }
             break;
             default:
-                throw std::runtime_error("invalid operand");
+                throw_type_error_with_location(
+                    "invalid operand {}", current_token().content
+                );
         }
     }
 
@@ -665,7 +656,6 @@ class parser {
     }
 
     std::optional<std::pair<std::string, variable_type>> find_variable(std::string_view variable_name) const {
-        // return program_scope.current_scope().find(variable_name);
         return static_symbol_table.find(variable_name);
     }
 
