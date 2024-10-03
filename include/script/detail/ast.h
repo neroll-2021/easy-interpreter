@@ -2,13 +2,13 @@
 #define NEROLL_SCRIPT_DETAIL_AST_H
 
 #include <cstdint>  // int32_t
-#include <memory>   // std::unique_ptr
+#include <memory>   // std::shared_ptr
 #include <vector>   // std::vector
 #include <format>   // std::format
 
-#include "script/detail/variable.h"     // variable_type_cast
+#include "script/detail/variable.h"     // arithmetic_type_cast
 #include "script/detail/value_t.h"      // value_t
-#include "script/detail/operator.h"     // plus, minus, multiplies, divides
+#include "script/detail/operator.h"     // plus, minus, multiplies, divides, modulus
 #include "script/detail/scope.h"        // program_scope
 #include "script/detail/static_symbols.h"
 #include "script/detail/function.h"
@@ -200,7 +200,6 @@ std::shared_ptr<value_t> binary_node::evaluate_result<modulus>() const {
     auto lhs = std::dynamic_pointer_cast<int_value>(lhs_value);
     auto rhs = std::dynamic_pointer_cast<int_value>(rhs_value);
 
-    // return new int_value(lhs->value() % rhs->value());
     return std::make_shared<int_value>(lhs->value() % rhs->value());
 }
 
@@ -219,7 +218,6 @@ std::shared_ptr<value_t> binary_node::select_operator(token_type op) const {
             return evaluate_result<modulus>();
         default:
             throw_syntax_error("invalid operator {}", op);
-            // return new error_value(std::format("invalid operator {}", token_type_name(op)));
     }
 }
 
@@ -354,12 +352,10 @@ class less_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() < p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() < p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         } else {
@@ -367,12 +363,10 @@ class less_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() < p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() < p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         }
@@ -392,10 +386,6 @@ class greater_node : public binary_node {
             throw_type_error(
                 "cannot compare {} and {}", left()->value_type(), right()->value_type()
             );
-            // throw std::runtime_error(
-            //     std::format("cannot compare {} and {}",
-            //         variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
-            // );
         }
         
         if (left_value->type() == variable_type::integer) {
@@ -403,12 +393,10 @@ class greater_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() > p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() > p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         } else {
@@ -416,12 +404,10 @@ class greater_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() > p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() > p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         }
@@ -449,12 +435,10 @@ class equal_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() == p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() == p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         } else {
@@ -462,12 +446,10 @@ class equal_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() == p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() == p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         }
@@ -495,12 +477,10 @@ class not_equal_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() != p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() != p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         } else {
@@ -508,12 +488,10 @@ class not_equal_node : public binary_node {
             if (right_value->type() == variable_type::integer) {
                 auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
                 bool result = p1->value() != p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             } else {
                 auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
                 bool result = p1->value() != p2->value();
-                // return new boolean_value(result);
                 return std::make_shared<boolean_value>(result);
             }
         }
@@ -549,9 +527,7 @@ class logical_and_node : public binary_node {
 
         std::shared_ptr<value_t> rhs_value = right()->evaluate();
         auto p2 = std::dynamic_pointer_cast<boolean_value>(rhs_value);
-            // return new boolean_value(false);
 
-        // return new boolean_value(p1->value() && p2->value());
         return std::make_shared<boolean_value>(p1->value() && p2->value());
     }
 };
@@ -575,13 +551,10 @@ class logical_or_node : public binary_node {
 
         if (p1->value() == true)
             return std::make_shared<boolean_value>(true);
-            // return new boolean_value(true);
         
         std::shared_ptr<value_t> rhs_value = right()->evaluate();
         auto p2 = std::dynamic_pointer_cast<boolean_value>(rhs_value);
 
-
-        // return new boolean_value(p1->value() || p2->value());
         return std::make_shared<boolean_value>(p1->value() || p2->value());
     }
 };
@@ -589,14 +562,11 @@ class logical_or_node : public binary_node {
 std::shared_ptr<value_t> variable_value(const std::shared_ptr<variable> &var) {
     switch (var->type()) {
         case variable_type::integer:
-            // return new int_value(std::dynamic_pointer_cast<variable_int>(var)->value());
             return std::make_shared<int_value>(std::dynamic_pointer_cast<variable_int>(var)->value());
         case variable_type::floating:
-            // return new float_value(std::dynamic_pointer_cast<variable_float>(var)->value());
             return std::make_shared<float_value>(std::dynamic_pointer_cast<variable_float>(var)->value());
         case variable_type::boolean:
             return std::make_shared<boolean_value>(std::dynamic_pointer_cast<variable_boolean>(var)->value());
-            // return new boolean_value(std::dynamic_pointer_cast<variable_boolean>(var)->value());
         default:
             return nullptr;
     }
@@ -641,7 +611,6 @@ class variable_node : public expression_node {
     }
 
  private:
-    // std::shared_ptr<variable> var_;
     std::string var_name;
     variable_type var_type;
 };
@@ -835,17 +804,6 @@ class declaration_node : public statement_node {
         if (value != nullptr && !can_assign(type, value->value_type())) {
             throw_type_error("initial value type {} cannot assign to {}", value->value_type(), type);
         }
-
-        // assert(value->value_type() != variable_type::error);
-        // if (value != nullptr && value->value_type() == variable_type::boolean && type == variable_type::boolean) {
-            
-        // }
-        // else if (value != nullptr && arithmetic_type_cast(type, value->value_type()) == variable_type::error) {
-        //     throw std::runtime_error(
-        //         std::format("initial value type '{}' is not the same with variable type '{}",
-        //             variable_type_name(value->value_type()), variable_type_name(type))
-        //     );
-        // }
         
         switch (type) {
             case variable_type::integer:
@@ -872,7 +830,6 @@ class declaration_node : public statement_node {
                 default:
                     throw std::runtime_error("unreachable code");
             }
-            // init_value_.reset(value);
             assert(init_value_ != nullptr);
         }
     }
@@ -897,7 +854,6 @@ class declaration_node : public statement_node {
         std::println("init type: {}", variable_type_name(init_value_->value_type()));
         switch (type_) {
             case variable_type::integer: {
-                // auto p = std::dynamic_pointer_cast<int_node>(init_value_);
                 auto p = init_value_;
                 // assert(p != nullptr);
                 // assert(init_value_->node_type() == ast_node_type::func_call);
@@ -965,11 +921,9 @@ class block_node : public statement_node {
     std::pair<execute_state, std::shared_ptr<value_t>> execute() override {
         std::println("block node execute");
         std::println("size: {}", statements_.size());
-        // assert(statements_.size() == 1);
         for (auto &statement : statements_) {
             std::println("loop");
             std::println("not type {}", static_cast<int>(statement->node_type()));
-            // assert(statement->node_type() == ast_node_type::jump);
             std::pair<execute_state, std::shared_ptr<value_t>> result = statement->execute();
             auto [state, value] = result;
             if (state != execute_state::normal) {
@@ -1139,7 +1093,7 @@ class func_call_node : public expression_node {
         auto func = func_decls.find(name_);
         assert(func != nullptr);
         variable_type type = func->return_type();
-        // return func->execute().second;
+
         assert(func->body() != nullptr);
         std::println("func_call evaluate");
 

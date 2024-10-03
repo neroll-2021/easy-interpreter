@@ -3,3 +3,5 @@ function add(int x, int y) : int {
 }
 
 int c = add(1, 2);
+
+c = c + x;
