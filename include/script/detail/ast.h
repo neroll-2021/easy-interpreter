@@ -147,11 +147,7 @@ class binary_node : public expression_node {
 
     template <typename Op>
     std::shared_ptr<value_t> evaluate_result() const {
-        if constexpr (std::is_same_v<Op, plus>) {
-            std::println("evaluate_result");
-        }
         assert(value_type() != variable_type::error);
-        
         assert(left() != nullptr);
         assert(right() != nullptr);
 
@@ -159,27 +155,21 @@ class binary_node : public expression_node {
         std::shared_ptr<value_t> lhs_value = left()->evaluate();
         std::shared_ptr<value_t> rhs_value = right()->evaluate();
 
-        std::println("value type: {}", variable_type_name(value_type()));
-
         if (value_type() == variable_type::integer) {
             auto l = std::dynamic_pointer_cast<int_value>(lhs_value);
             auto r = std::dynamic_pointer_cast<int_value>(rhs_value);
-            // return new int_value(Op{}(l->value(), r->value()));
             return std::make_shared<int_value>(Op{}(l->value(), r->value()));
         } else if (left()->value_type() == variable_type::integer) {
             auto l = std::dynamic_pointer_cast<int_value>(lhs_value);
             auto r = std::dynamic_pointer_cast<float_value>(rhs_value);
-            // return new float_value(Op{}(l->value(), r->value()));
             return std::make_shared<float_value>(Op{}(l->value(), r->value()));
         } else if (right()->value_type() == variable_type::integer) {
             auto l = std::dynamic_pointer_cast<float_value>(lhs_value);
             auto r = std::dynamic_pointer_cast<int_value>(rhs_value);
-            // return new float_value(Op{}(l->value(), r->value()));
             return std::make_shared<float_value>(Op{}(l->value(), r->value()));
         } else {
             auto l = std::dynamic_pointer_cast<float_value>(lhs_value);
             auto r = std::dynamic_pointer_cast<float_value>(rhs_value);
-            // return new float_value(Op{}(l->value(), r->value()));
             return std::make_shared<float_value>(Op{}(l->value(), r->value()));
         }
     }
@@ -204,7 +194,6 @@ std::shared_ptr<value_t> binary_node::evaluate_result<modulus>() const {
 }
 
 std::shared_ptr<value_t> binary_node::select_operator(token_type op) const {
-    std::println("select_operator");
     switch (op) {
         case token_type::plus:
             return evaluate_result<plus>();
@@ -245,8 +234,6 @@ class add_node : public binary_node {
                 "invalid operator + between {} and {}", left()->value_type(), right()->value_type()
             );
         }
-
-        std::println("add evaluate");
 
         return select_operator(token_type::plus);
     }
@@ -424,9 +411,8 @@ class equal_node : public binary_node {
         std::shared_ptr<value_t> right_value = right()->evaluate();
 
         if (!can_compare(left()->value_type(), token_type::equal, right()->value_type())) {
-            throw std::runtime_error(
-                std::format("cannot compare {} and {}",
-                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            throw_type_error(
+                "cannot compare {} and {}", left()->value_type(), right()->value_type()
             );
         }
         
@@ -466,9 +452,8 @@ class not_equal_node : public binary_node {
         std::shared_ptr<value_t> right_value = right()->evaluate();
 
         if (!can_compare(left()->value_type(), token_type::not_equal, right()->value_type())) {
-            throw std::runtime_error(
-                std::format("cannot compare {} and {}",
-                    variable_type_name(left()->value_type()), variable_type_name(right()->value_type()))
+            throw_type_error(
+                "cannot compare {} and {}", left()->value_type(), right()->value_type()
             );
         }
         
@@ -681,9 +666,8 @@ class assign_node : public binary_node {
             }
         } else if (left()->value_type() == variable_type::boolean) {
             if (right()->value_type() != variable_type::boolean) {
-                throw std::runtime_error(
-                    std::format("cannot assign {} to {}",
-                        variable_type_name(right()->value_type()), variable_type_name(left()->value_type()))
+                throw_type_error(
+                    "cannot assign {} to {}", right()->value_type(), left()->value_type()
                 );
             }
             auto p = right()->evaluate();
@@ -919,11 +903,7 @@ class block_node : public statement_node {
     }
 
     std::pair<execute_state, std::shared_ptr<value_t>> execute() override {
-        std::println("block node execute");
-        std::println("size: {}", statements_.size());
         for (auto &statement : statements_) {
-            std::println("loop");
-            std::println("not type {}", static_cast<int>(statement->node_type()));
             std::pair<execute_state, std::shared_ptr<value_t>> result = statement->execute();
             auto [state, value] = result;
             if (state != execute_state::normal) {
@@ -1014,7 +994,6 @@ class func_decl_node : public statement_node {
 
     std::pair<execute_state, std::shared_ptr<value_t>> execute() override {
         func_decls.add(name_, this);
-        std::println("func_decl execute");
         return {execute_state::normal, nullptr};
         
     }
@@ -1072,7 +1051,6 @@ class return_node : public statement_node {
     std::pair<execute_state, std::shared_ptr<value_t>> execute() override {
         if (expr_ == nullptr)
             return {execute_state::returned, nullptr};
-        std::println("return execute");
         return {execute_state::returned, expr_->evaluate()};
     }
 
