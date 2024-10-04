@@ -171,6 +171,36 @@ class binary_node : public expression_node {
         return rhs_;
     }
 
+ private:
+    std::shared_ptr<expression_node> lhs_;
+    std::shared_ptr<expression_node> rhs_;
+};
+
+class unary_node : public expression_node {
+ public:
+    unary_node(expression_node *value)
+        : expression_node(ast_node_type::unary), value_(value) {}
+
+    std::shared_ptr<expression_node> value() const {
+        return value_;
+    }
+
+ private:
+    std::shared_ptr<expression_node> value_;
+};
+
+class binary_arithmetic_node : public binary_node {
+ public:
+    binary_arithmetic_node(expression_node *lhs, token_type op, expression_node *rhs)
+        : binary_node(lhs, op, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+        variable_type type = arithmetic_type_cast(lhs_type, rhs_type);
+        if (type == variable_type::error)
+            throw_type_error("invalid operator {} between {} and {}", op, lhs_type, rhs_type);
+        set_value_type(type);
+    }
+
     std::shared_ptr<value_t> select_operator(token_type op) const;
 
     template <typename Op>
@@ -201,14 +231,10 @@ class binary_node : public expression_node {
             return std::make_shared<float_value>(Op{}(l->value(), r->value()));
         }
     }
-
- private:
-    std::shared_ptr<expression_node> lhs_;
-    std::shared_ptr<expression_node> rhs_;
 };
 
 template <>
-std::shared_ptr<value_t> binary_node::evaluate_result<modulus>() const {
+std::shared_ptr<value_t> binary_arithmetic_node::evaluate_result<modulus>() const {
     assert(left()->value_type() == variable_type::integer);
     assert(right()->value_type() == variable_type::integer);
 
@@ -221,7 +247,7 @@ std::shared_ptr<value_t> binary_node::evaluate_result<modulus>() const {
     return std::make_shared<int_value>(lhs->value() % rhs->value());
 }
 
-std::shared_ptr<value_t> binary_node::select_operator(token_type op) const {
+std::shared_ptr<value_t> binary_arithmetic_node::select_operator(token_type op) const {
     switch (op) {
         case token_type::plus:
             return evaluate_result<plus>();
@@ -237,32 +263,6 @@ std::shared_ptr<value_t> binary_node::select_operator(token_type op) const {
             throw_syntax_error("invalid operator {}", op);
     }
 }
-
-class unary_node : public expression_node {
- public:
-    unary_node(expression_node *value)
-        : expression_node(ast_node_type::unary), value_(value) {}
-
-    std::shared_ptr<expression_node> value() const {
-        return value_;
-    }
-
- private:
-    std::shared_ptr<expression_node> value_;
-};
-
-class binary_arithmetic_node : public binary_node {
- public:
-    binary_arithmetic_node(expression_node *lhs, token_type op, expression_node *rhs)
-        : binary_node(lhs, op, rhs) {
-        variable_type lhs_type = lhs->value_type();
-        variable_type rhs_type = rhs->value_type();
-        variable_type type = arithmetic_type_cast(lhs_type, rhs_type);
-        if (type == variable_type::error)
-            throw_type_error("invalid operator {} between {} and {}", op, lhs_type, rhs_type);
-        set_value_type(type);
-    }
-};
 
 class add_node final : public binary_arithmetic_node {
  public:
@@ -297,17 +297,24 @@ class multiply_node final : public binary_arithmetic_node {
 class divide_node final : public binary_arithmetic_node {
  public:
     divide_node(expression_node *lhs, expression_node *rhs)
-        : binary_arithmetic_node(lhs, token_type::slash, rhs) {}
+        : binary_arithmetic_node(lhs, token_type::slash, rhs) {
+        variable_type lhs_type = lhs->value_type();
+        variable_type rhs_type = rhs->value_type();
+
+        if (!is_both_integer(lhs_type, rhs_type)) {
+            throw_type_error("invalid operator % between {} and {}", lhs_type, rhs_type);
+        }
+    }
 
     std::shared_ptr<value_t> evaluate() const override {
         return select_operator(token_type::slash);
     }
 };
 
-class modulus_node final : public binary_node {
+class modulus_node final : public binary_arithmetic_node {
  public:
     modulus_node(expression_node *lhs, expression_node *rhs)
-        : binary_node(lhs, token_type::mod, rhs) {
+        : binary_arithmetic_node(lhs, token_type::mod, rhs) {
         variable_type lhs_type = lhs->value_type();
         variable_type rhs_type = rhs->value_type();
 
@@ -358,6 +365,51 @@ class relation_node : public binary_node {
 
         set_value_type(variable_type::boolean);
     }
+
+    template <typename Op>
+    std::shared_ptr<value_t> evaluate_result() const {
+        std::shared_ptr<value_t> left_value = left()->evaluate();
+        std::shared_ptr<value_t> right_value = right()->evaluate();
+
+        if (left_value->type() == variable_type::integer) {
+            auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
+                bool result = Op{}(p1->value(), p2->value());
+                return std::make_shared<boolean_value>(result);
+            } else {
+                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
+                bool result = Op{}(p1->value(), p2->value());
+                return std::make_shared<boolean_value>(result);
+            }
+        } else {
+            auto p1 = std::dynamic_pointer_cast<float_value>(left_value);
+            if (right_value->type() == variable_type::integer) {
+                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
+                bool result = Op{}(p1->value(), p2->value());
+                return std::make_shared<boolean_value>(result);
+            } else {
+                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
+                bool result = Op{}(p1->value(), p2->value());
+                return std::make_shared<boolean_value>(result);
+            }
+        }
+    }
+
+    std::shared_ptr<value_t> select_operator(token_type op) const {
+        switch (op) {
+            case token_type::less:
+                return evaluate_result<less>();
+            case token_type::greater:
+                return evaluate_result<greater>();
+            case token_type::equal:
+                return evaluate_result<equal>();
+            case token_type::not_equal:
+                return evaluate_result<not_equal>();
+            default:
+                throw_syntax_error("invalid relation operator {}", op);
+        }
+    }
 };
 
 class less_node : public relation_node {
@@ -366,32 +418,7 @@ class less_node : public relation_node {
         : relation_node(lhs, token_type::less, rhs) {}
  
     std::shared_ptr<value_t> evaluate() const override {
-        std::shared_ptr<value_t> left_value = left()->evaluate();
-        std::shared_ptr<value_t> right_value = right()->evaluate();
-
-        if (left_value->type() == variable_type::integer) {
-            auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() < p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() < p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        } else {
-            auto p1 = std::dynamic_pointer_cast<float_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() < p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() < p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        }
+        return select_operator(token_type::less);
     }
 };
 
@@ -401,32 +428,7 @@ class greater_node : public relation_node {
         : relation_node(lhs, token_type::greater, rhs) {}
 
     std::shared_ptr<value_t> evaluate() const override {
-        std::shared_ptr<value_t> left_value = left()->evaluate();
-        std::shared_ptr<value_t> right_value = right()->evaluate();
-        
-        if (left_value->type() == variable_type::integer) {
-            auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() > p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() > p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        } else {
-            auto p1 = std::dynamic_pointer_cast<float_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() > p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() > p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        }
+        return select_operator(token_type::greater);
     }
 };
 
@@ -436,32 +438,7 @@ class equal_node : public relation_node {
         : relation_node(lhs, token_type::equal, rhs) {}
 
     std::shared_ptr<value_t> evaluate() const override {
-        std::shared_ptr<value_t> left_value = left()->evaluate();
-        std::shared_ptr<value_t> right_value = right()->evaluate();
-        
-        if (left_value->type() == variable_type::integer) {
-            auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() == p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() == p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        } else {
-            auto p1 = std::dynamic_pointer_cast<float_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() == p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() == p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        }
+        return select_operator(token_type::equal);
     }
 };
 
@@ -471,32 +448,7 @@ class not_equal_node : public relation_node {
         : relation_node(lhs, token_type::not_equal, rhs) {}
 
     std::shared_ptr<value_t> evaluate() const override {
-        std::shared_ptr<value_t> left_value = left()->evaluate();
-        std::shared_ptr<value_t> right_value = right()->evaluate();
-        
-        if (left_value->type() == variable_type::integer) {
-            auto p1 = std::dynamic_pointer_cast<int_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() != p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() != p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        } else {
-            auto p1 = std::dynamic_pointer_cast<float_value>(left_value);
-            if (right_value->type() == variable_type::integer) {
-                auto p2 = std::dynamic_pointer_cast<int_value>(right_value);
-                bool result = p1->value() != p2->value();
-                return std::make_shared<boolean_value>(result);
-            } else {
-                auto p2 = std::dynamic_pointer_cast<float_value>(right_value);
-                bool result = p1->value() != p2->value();
-                return std::make_shared<boolean_value>(result);
-            }
-        }
+        return select_operator(token_type::not_equal);
     }
 };
 

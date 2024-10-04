@@ -48,6 +48,38 @@ class modulus {
     }
 };
 
+class less {
+ public:
+    template <typename T, typename U>
+    constexpr auto operator()(const T &lhs, const U &rhs) {
+        return lhs < rhs;
+    }
+};
+
+class greater {
+ public:
+    template <typename T, typename U>
+    constexpr auto operator()(const T &lhs, const U &rhs) {
+        return lhs > rhs;
+    }
+};
+
+class equal {
+ public:
+    template <typename T, typename U>
+    constexpr auto operator()(const T &lhs, const U &rhs) {
+        return lhs == rhs;
+    }
+};
+
+class not_equal {
+ public:
+    template <typename T, typename U>
+    constexpr auto operator()(const T &lhs, const U &rhs) {
+        return lhs != rhs;
+    }
+};
+
 }   // namespace detail
 
 }   // namespace script
