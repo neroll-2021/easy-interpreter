@@ -13,4 +13,11 @@ function fib(int x) : int {
     return c;
 }
 
-println(fib(n));
+function odd(int x) : boolean {
+    if (x % 2 == 1)
+        return true;
+    else
+        return false;
+}
+
+println(odd(n));

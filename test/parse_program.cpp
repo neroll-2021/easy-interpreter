@@ -2,7 +2,7 @@
 #include <fstream>
 
 #include "script/detail/input_adapter.h"
-#include "script/detail/new_parser.h"
+#include "script/detail/parser.h"
 
 namespace nsd = neroll::script::detail;
 
@@ -12,7 +12,7 @@ int main() {
         std::println("cannot open file");
         return 0;
     }
-    nsd::parser parser{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
+    nsd::parser<nsd::input_stream_adapter> parser{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
     std::shared_ptr<nsd::statement_node> node;
 
     try {

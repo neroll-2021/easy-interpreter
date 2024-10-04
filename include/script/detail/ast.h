@@ -1195,6 +1195,39 @@ class func_call_node : public expression_node {
     std::vector<std::shared_ptr<expression_node>> args_;
 };
 
+class if_node : public statement_node {
+ public:
+    if_node(expression_node *condition, statement_node *body)
+        : statement_node(ast_node_type::node_if),
+          condition_(condition), if_statements_(body) {
+        variable_type type = condition->value_type();
+        if (type != variable_type::boolean) {
+            throw_type_error(
+                "condition of if statement must have a type boolean"
+            );
+        }
+    }
+    
+    void set_else(std::shared_ptr<statement_node> node) {
+        else_statements_ = node;
+    }
+
+    std::pair<execute_state, std::shared_ptr<value_t>> execute() override {
+        std::shared_ptr<value_t> value = condition_->evaluate();
+        auto v = std::dynamic_pointer_cast<boolean_value>(value);
+        if (v->value()) {
+            return if_statements_->execute();
+        } else {
+            return else_statements_->execute();
+        }
+    }
+
+ private:
+    std::shared_ptr<expression_node> condition_;
+    std::shared_ptr<statement_node> if_statements_;
+    std::shared_ptr<statement_node> else_statements_;
+};
+
 }   // namespace detail
 
 }   // namespace script
