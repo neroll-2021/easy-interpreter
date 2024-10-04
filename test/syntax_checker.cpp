@@ -11,7 +11,7 @@ int main() {
         std::println("cannot open file");
         return 0;
     }
-    nsd::syntax_checker checker{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
+    nsd::syntax_checker<nsd::input_stream_adapter> checker{nsd::lexer<nsd::input_stream_adapter>{nsd::input_stream_adapter{fin}}};
 
     try {
         checker.check();

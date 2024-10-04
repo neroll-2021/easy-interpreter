@@ -280,8 +280,7 @@ class lexer {
         }
     }
 
-//  private:
- public:
+ private:
 
     token scan_identifier() {
         reset();

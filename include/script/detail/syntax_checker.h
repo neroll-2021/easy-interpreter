@@ -113,7 +113,7 @@ namespace detail {
  *                 | return expression ;
  * 
  */
-// template <typename T>
+template <typename InputAdaptor>
 class syntax_checker {
  public:
     syntax_checker(lexer<input_stream_adapter> &&lex)
@@ -546,7 +546,7 @@ class syntax_checker {
         }
     }
 
-    lexer<input_stream_adapter> lexer_;
+    lexer<InputAdaptor> lexer_;
     ring_buffer<token> buffer_;
 
     constexpr static std::size_t look_ahead_count = 2;

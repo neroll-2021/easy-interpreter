@@ -15,7 +15,7 @@ int main() {
     std::shared_ptr<nsd::statement_node> node;
 
     try {
-        node.reset(parser.parse_program());
+        node.reset(parser.parse());
     }
     catch (std::exception &e) {
         std::println("parse error: {}", e.what());
@@ -34,6 +34,5 @@ int main() {
     }
     catch (std::exception &e) {
         std::println("execute error: {}", e.what());
-        return 0;
     }
 }

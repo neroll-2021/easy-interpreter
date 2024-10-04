@@ -31,8 +31,11 @@ class parser {
         }
     }
 
- private:
+    statement_node *parse() {
+        return parse_program();
+    }
 
+ private:
     template <typename... Args>
     [[noreturn]]
     void throw_syntax_error_with_location(const std::format_string<Args...> format_string, Args&&... args) {
