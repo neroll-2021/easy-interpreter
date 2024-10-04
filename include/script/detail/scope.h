@@ -15,11 +15,6 @@ namespace script {
 
 namespace detail {
 
-
-/**
- * store variable, no function
- * 
- */
 class scope {
  public:
     bool contains(std::string_view variable_name) const {

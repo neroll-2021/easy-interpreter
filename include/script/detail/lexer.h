@@ -314,12 +314,6 @@ class lexer {
                             previous_state = state;
                             state = 2;
                             break;
-                        // case '+':
-                        // case '-':
-                        //     add(current_);
-                        //     previous_state = state;
-                        //     state = 1;
-                        //     break;
                         case '1':
                         case '2':
                         case '3':

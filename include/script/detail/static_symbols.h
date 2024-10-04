@@ -54,37 +54,9 @@ class static_symbols {
     std::vector<std::map<std::string, variable_type, std::less<>>> scopes;
 };
 
-// class static_func {
-//  public:
-//     bool contains(std::string_view func_name) const {
-//         return functions_.contains(func_name);
-//     }
-
-//     bool empty() const {
-//         return functions_.empty();
-//     }
-
-//     void insert(std::string_view name, const function &func) {
-//         functions_.insert({std::string{name}, func});
-//     }
-
-//     std::optional<function> find(std::string_view name) {
-//         auto iter = functions_.find(name);
-//         if (iter == functions_.end()) {
-//             return  std::nullopt;
-//         }
-//         return iter->second;
-//     }
-
-//  private:
-//     std::map<std::string, function, std::less<>> functions_;
-// };
-
 inline function_declaration static_func_decls;
 
 inline static_symbols static_symbol_table;
-
-
 
 }
 

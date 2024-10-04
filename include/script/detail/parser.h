@@ -31,7 +31,7 @@ class parser {
         }
     }
 
-//  private:
+ private:
 
     template <typename... Args>
     [[noreturn]]
@@ -76,21 +76,6 @@ class parser {
         return node;
     }
 
-    // statement_node *parse_block() {
-    //     match(token_type::left_brace);
-    //     // block_node *block = new block_node();
-    //     // while (current_token_type() != token_type::right_brace) {
-    //     //     statement_node *item = parse_item();
-    //     //     block->insert(item);
-    //     // }
-    //     static_symbol_table.push_scope();
-    //     statement_node *block = parse_items();
-    //     assert(!static_symbol_table.empty());
-    //     static_symbol_table.pop_scope();
-    //     match(token_type::right_brace);
-    //     return block;
-    // }
-
     statement_node *parse_items() {
         
         block_node *block = new block_node();
@@ -98,7 +83,6 @@ class parser {
             statement_node *item = parse_item();
             block->insert(item);
         }
-        // static_symbol_table.pop_scope();
         return block;
     }
 
@@ -593,18 +577,12 @@ class parser {
                     auto [n, t] = var.value();
                     switch (t) {
                         case variable_type::integer: {
-                            // auto p = std::dynamic_pointer_cast<variable_int>(var);
-                            // return new int_node(p->value());
                             return new variable_node(n, t);
                         }
                         case variable_type::floating: {
-                            // auto p = std::dynamic_pointer_cast<variable_float>(var);
-                            // return new float_node(p->value());
                             return new variable_node(n, t);
                         }
                         case variable_type::boolean: {
-                            // auto p = std::dynamic_pointer_cast<variable_boolean>(var);
-                            // return new boolean_node(p->value());
                             return new variable_node(n, t);
                         }
                         default:

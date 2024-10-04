@@ -16,9 +16,7 @@ int main() {
     std::shared_ptr<nsd::statement_node> node;
 
     try {
-        std::println("parse begin");
         node.reset(parser.parse_program());
-        std::println("parse end");
     }
     catch (std::exception &e) {
         std::println("parse error: {}", e.what());
@@ -28,15 +26,11 @@ int main() {
     try {
         assert(node != nullptr);
 
-        std::println("execute begin");
-
         std::pair<nsd::execute_state, std::shared_ptr<nsd::value_t>> result = node->execute();
-        std::println("execute complete");
+
         auto [state, value] = result;
 
         assert(state == nsd::execute_state::normal);
-
-        std::println("done");
 
     }
     catch (std::exception &e) {

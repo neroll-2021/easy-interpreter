@@ -1,5 +1,3 @@
-int n = input(int);
-
 function fib(int x) : int {
     int a = 1;
     int b = 1;
@@ -20,4 +18,6 @@ function odd(int x) : boolean {
         return false;
 }
 
-println(odd(n));
+int n = input(int);
+
+println(odd(fib(n)));

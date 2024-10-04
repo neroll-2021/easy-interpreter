@@ -143,23 +143,6 @@ variable_type binary_expression_type(variable_type lhs_type, token_type op, vari
     }
 }
 
-bool is_valid_binary_expr(variable_type lhs, token_type op, variable_type rhs) {
-    if (is_arithmetic_operator(op))
-        return arithmetic_type_cast(lhs, rhs) != variable_type::error;
-
-    if (is_modulus_operator(op))
-        return is_both_integer(lhs, rhs);
-    
-    if (is_logical_operator(op))
-        return is_both_boolean(lhs, rhs);
-    
-    if (is_relation_oeprator(op)) {
-        // if (!is_both_boolean(lhs, rhs))
-        return true;
-    }
-    return false;
-}
-
 class binary_node : public expression_node {
  public:
     binary_node(expression_node *lhs, token_type op, expression_node *rhs)
