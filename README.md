@@ -1,4 +1,6 @@
 # Easy Interpreter
+[简体中文](./README_ZH.md)
+
 an easy tree based interpreter for *nscript* in C++.
 
 ## nscript
