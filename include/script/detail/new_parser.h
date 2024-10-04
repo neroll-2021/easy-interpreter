@@ -129,6 +129,7 @@ class parser {
                 match(token_type::assign);
                 expression_node *expr = parse_assign_expr();
                 match(token_type::semicolon);
+                func_call_node *func = dynamic_cast<func_call_node *>(expr);
                 return new declaration_node(var_type, var_name, expr);
             } else if (current_token_type() == token_type::semicolon) {
                 match(token_type::semicolon);
@@ -181,11 +182,6 @@ class parser {
         }
 
         statement_node *body = parse_block();
-        assert(body != nullptr);
-        assert(body->node_type() == ast_node_type::block);
-
-        auto ttt = dynamic_cast<block_node *>(body);
-        assert(ttt->statements().size() == 1);
 
         func_decl_node *node = new func_decl_node(return_type, name, body);
 
@@ -506,6 +502,29 @@ class parser {
                 match(token_type::identifier);
 
                 if (current_token_type() == token_type::left_parenthese) {
+
+                    if (var_name == "input") {
+                        
+                        match(token_type::left_parenthese);
+                        if (current_token_type() == token_type::keyword_int) {
+                            match(token_type::keyword_int);
+                            match(token_type::right_parenthese);
+                            return new func_call_node(var_name, std::vector<expression_node *>{new int_node(0)});
+                        } else if (current_token_type() == token_type::keyword_float) {
+                            match(token_type::keyword_float);
+                            match(token_type::right_parenthese);
+                            return new func_call_node(var_name, std::vector<expression_node *>{new float_node(0.0)});
+                        } else if (current_token_type() == token_type::keyword_boolean) {
+                            match(token_type::keyword_boolean);
+                            match(token_type::right_parenthese);
+                            return new func_call_node(var_name, std::vector<expression_node *>{new boolean_node(false)});
+                        } else {
+                            throw_type_error(
+                                "expect a type of int, float or boolean"
+                            );
+                        }
+                    }
+
                     // parse_func_call
                     match(token_type::left_parenthese);
                     std::vector<expression_node *> args = parse_arg_list();
@@ -518,6 +537,7 @@ class parser {
                                 line, col, var_name
                             );
                         }
+
                         variable_type arg_type = args[0]->value_type();
                         if (arg_type != variable_type::integer && arg_type != variable_type::floating &&
                             arg_type != variable_type::boolean) {

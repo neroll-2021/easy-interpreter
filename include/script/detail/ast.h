@@ -5,6 +5,7 @@
 #include <memory>   // std::shared_ptr
 #include <vector>   // std::vector
 #include <format>   // std::format
+#include <iostream>
 
 #include "script/detail/variable.h"     // arithmetic_type_cast
 #include "script/detail/value_t.h"      // value_t
@@ -749,9 +750,16 @@ class declaration_node : public statement_node {
         : statement_node(ast_node_type::declaration), type_(type), variable_name_(name), init_value_(value) {
         assert(type != variable_type::error);
 
+        if (static_symbol_table.current_scope().contains(name)) {
+            throw_symbol_error(
+                "{} is already defined in this scope", name
+            );
+        }
+
         if (value != nullptr && !can_assign(type, value->value_type())) {
             throw_type_error("initial value type {} cannot assign to {}", value->value_type(), type);
         }
+
         
         switch (type) {
             case variable_type::integer:
@@ -796,24 +804,31 @@ class declaration_node : public statement_node {
     }
 
     std::pair<execute_state, std::shared_ptr<value_t>> execute() override {
-        // program_scope.current_scope().insert();
         switch (type_) {
             case variable_type::integer: {
                 auto p = init_value_;
-                // assert(p != nullptr);
-                // assert(init_value_->node_type() == ast_node_type::func_call);
-                std::shared_ptr<value_t> r = p->evaluate();
-                assert(r != nullptr);
-                auto v = std::dynamic_pointer_cast<int_value>(r);
-                assert(v != nullptr);
-                program_scope.current_scope().insert(new variable_int(variable_name_, v->value()));
+                if (p->value_type() == variable_type::floating) {
+                    std::shared_ptr<value_t> r = p->evaluate();
+                    auto v = std::dynamic_pointer_cast<float_value>(r);
+                    program_scope.current_scope().insert(new variable_int(variable_name_, static_cast<int32_t>(v->value())));
+                } else {    // int
+                    std::shared_ptr<value_t> r = p->evaluate();
+                    auto v = std::dynamic_pointer_cast<int_value>(r);
+                    program_scope.current_scope().insert(new variable_int(variable_name_, v->value()));
+                }
             }
             break;
             case variable_type::floating: {
-                auto p = std::dynamic_pointer_cast<float_node>(init_value_);
-                std::shared_ptr<value_t> r = p->evaluate();
-                auto v = std::dynamic_pointer_cast<float_value>(r);
-                program_scope.current_scope().insert(new variable_float(variable_name_, v->value()));
+                auto p = init_value_;
+                if (p->value_type() == variable_type::floating) {
+                    std::shared_ptr<value_t> r = p->evaluate();
+                    auto v = std::dynamic_pointer_cast<float_value>(r);
+                    program_scope.current_scope().insert(new variable_float(variable_name_, v->value()));
+                } else {    // int
+                    std::shared_ptr<value_t> r = p->evaluate();
+                    auto v = std::dynamic_pointer_cast<float_value>(r);
+                    program_scope.current_scope().insert(new variable_float(variable_name_, static_cast<float>(v->value())));
+                }
             }
             break;
             case variable_type::boolean: {
@@ -1020,14 +1035,64 @@ class return_node : public statement_node {
 
 class func_call_node : public expression_node {
  public:
-    func_call_node(std::string_view name, std::vector<expression_node *> args)
+    func_call_node(std::string_view name, const std::vector<expression_node *> &args)
         : expression_node(ast_node_type::func_call), name_(name) {
         for (auto arg : args) {
             args_.emplace_back(arg);
         }
+        if (name_ == "input") {
+            variable_type arg_type = args_[0]->value_type();
+            set_value_type(arg_type);
+        } else if (name_ == "println") {
+            set_value_type(variable_type::integer);
+        } else {
+            const func_decl_node *func = static_func_decls.find(name_);
+            if (func == nullptr) {
+                throw_symbol_error("function {} is not defined", name_);
+            }
+            set_value_type(func->return_type());
+        }
+    }
+
+    const std::string &name() const {
+        return name_;
     }
     
     std::shared_ptr<value_t> evaluate() const override {
+
+        if (name_ == "input") {
+            variable_type arg_type = args_[0]->value_type();
+            if (arg_type == variable_type::integer) {
+                int32_t value = 0;
+                std::cin >> value;
+                if (std::cin.bad())
+                    std::cin.clear();
+                eatline();
+                return std::make_shared<int_value>(value);
+            } else if (arg_type == variable_type::floating) {
+                float value = 0.0;
+                std::cin >> value;
+                eatline();
+                return std::make_shared<float_value>(value);
+            } else if (arg_type == variable_type::boolean) {
+                std::string s, t;
+                bool value = false;
+                std::getline(std::cin, s);
+                if (s == "true")
+                    return std::make_shared<boolean_value>(true);
+                else if (s == "false")
+                    return std::make_shared<boolean_value>(false);
+                else
+                    throw_type_error(
+                        "must input 'true' or 'false'"
+                    );
+            } else {
+                throw_type_error(
+                    "invalid aargument type {} for input",
+                    arg_type
+                );
+            }
+        }
 
         if (name_ == "println") {
             variable_type arg_type = args_[0]->value_type();
@@ -1103,32 +1168,6 @@ class func_call_node : public expression_node {
             }
         }
 
-        // for (auto &p : func->params()) {
-        //     if (p->value_type() == variable_type::integer) {
-        //         auto init = p->init_value();
-        //         std::shared_ptr<value_t> v = init->evaluate();
-        //         auto i = std::dynamic_pointer_cast<int_value>(v);
-        //         program_scope.current_scope().insert(new variable_int(p->name(), i->value()));
-        //     } else if (p->value_type() == variable_type::floating) {
-        //         auto init = p->init_value();
-        //         std::shared_ptr<value_t> v = init->evaluate();
-        //         auto i = std::dynamic_pointer_cast<float_value>(v);
-        //         program_scope.current_scope().insert(new variable_float(p->name(), i->value()));
-        //     } else if (p->value_type() == variable_type::boolean) {
-        //         auto init = p->init_value();
-        //         std::shared_ptr<value_t> v = init->evaluate();
-        //         auto i = std::dynamic_pointer_cast<boolean_value>(v);
-        //         program_scope.current_scope().insert(new variable_boolean(p->name(), i->value()));
-        //     } else {
-        //         throw std::runtime_error("invalid function argument");
-        //     }
-        // }
-        
-        assert(func->body()->node_type() == ast_node_type::block);
-        auto ttt = std::dynamic_pointer_cast<block_node>(func->body());
-        assert(ttt != nullptr);
-        assert(ttt->statements()[0]->node_type() == ast_node_type::jump);
-
         auto [state, value] = func->body()->execute();
 
         program_scope.pop_scope();
@@ -1137,11 +1176,21 @@ class func_call_node : public expression_node {
     }
 
     variable_type value_type() const override {
+        if (name_ == "input")
+            return args_[0]->value_type();
+        if (name_ == "println")
+            return variable_type::integer;
         auto func = static_func_decls.find(name_);
         return func->return_type();
     }
 
  private:
+    void eatline() const {
+        while (std::getchar() != '\n') {
+            continue;
+        }
+    }
+
     std::string name_;
     std::vector<std::shared_ptr<expression_node>> args_;
 };

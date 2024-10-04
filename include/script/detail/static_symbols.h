@@ -35,6 +35,10 @@ class static_symbols {
         scopes.back().insert({std::string{var_name}, type});
     }
 
+    const std::map<std::string, variable_type, std::less<>> current_scope() const {
+        return scopes.back();
+    }
+
     std::optional<std::pair<std::string, variable_type>> find(std::string_view name) const {
         for (const auto &scope : scopes | std::views::reverse) {
             auto iter = scope.find(name);

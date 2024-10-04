@@ -39,7 +39,7 @@ int main() {
         std::println("done");
 
     }
-    catch (std::runtime_error &e) {
+    catch (std::exception &e) {
         std::println("execute error: {}", e.what());
         return 0;
     }
