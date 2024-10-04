@@ -139,9 +139,10 @@ class parser {
                 );
             }
         } else if (current_token_type() == token_type::keyword_function) {
-            // todo
-            return parse_func_decl();
-            // throw std::runtime_error("function declaration is not supported yet");
+            static_symbol_table.push_scope();
+            statement_node *func = parse_func_decl();
+            static_symbol_table.pop_scope();
+            return func;
         } else {
             throw_syntax_error_with_location(
                 "invalid declaration"
@@ -184,7 +185,6 @@ class parser {
         assert(body->node_type() == ast_node_type::block);
 
         auto ttt = dynamic_cast<block_node *>(body);
-        std::println("body size: {}", ttt->statements().size());
         assert(ttt->statements().size() == 1);
 
         func_decl_node *node = new func_decl_node(return_type, name, body);
@@ -228,7 +228,6 @@ class parser {
         }
         std::string name{current_token().content};
         match(token_type::identifier);
-        std::println("parse param");
         declaration_node *node = new declaration_node(type, name, nullptr);
         return node;
     }
@@ -350,7 +349,6 @@ class parser {
             expression_node *var_node = nullptr;
             var_node = new variable_node(n, t);
             expression_node *assign = new assign_node(var_node, rhs);
-            std::println("xxxxx");
             return assign;
         } else {
             return parse_logical_or();
@@ -513,7 +511,24 @@ class parser {
                     std::vector<expression_node *> args = parse_arg_list();
                     match(token_type::right_parenthese);
 
-                    // func_decl_node *func = func_decls.find(var_name);
+                    if (var_name == "println") {
+                        if (args.size() != 1) {
+                            throw_type_error(
+                                "line {} column {}: (function {}) no match arguments",
+                                line, col, var_name
+                            );
+                        }
+                        variable_type arg_type = args[0]->value_type();
+                        if (arg_type != variable_type::integer && arg_type != variable_type::floating &&
+                            arg_type != variable_type::boolean) {
+                            throw_type_error(
+                                "line {} column {}: (function {}) no match arguments",
+                                line, col, var_name
+                            );
+                        }
+                        return new func_call_node(var_name, args);
+                    }
+
                     func_decl_node *func = static_func_decls.find(var_name);
                     if (func == nullptr) {
                         throw_symbol_error(
@@ -527,13 +542,6 @@ class parser {
                             line, col, var_name
                         );
                     }
-
-                    auto &params = func->params();
-
-                    for (std::size_t i = 0; i < params.size(); i++) {
-                        params[i]->set_init_value(args[i]);
-                    }
-                    std::println("func call end");
                     return new func_call_node(var_name, args);
                 } else {
                     auto var = find_variable(var_name);
@@ -579,7 +587,6 @@ class parser {
             return false;
         const auto &params = func->params();
         for (std::size_t i = 0; i < args.size(); i++) {
-            std::println("qqqqqqqqqq");
             assert(params[i]->value_type() != variable_type::error);
             assert(args[i]->value_type() != variable_type::error);
             if (arithmetic_type_cast(params[i]->value_type(), args[i]->value_type()) == variable_type::error) {
@@ -646,7 +653,6 @@ class parser {
     }
 
     void get_token() {
-        std::println("{}", current_token());
         auto t = lexer_.next_token();
         buffer_.add(t);
     }
